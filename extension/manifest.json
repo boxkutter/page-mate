@@ -1,0 +1,78 @@
+{
+  "manifest_version": 3,
+  "name": "PageMate",
+  "version": "1.6.0",
+  "description": "Read pages aloud with your own Kokoro server, save them as PDF/Word/Markdown, download your course videos, and keep study notes.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "offscreen",
+    "contextMenus",
+    "webRequest",
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Read this page aloud (Alt+Shift+R)",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+R"
+      },
+      "description": "Start / stop reading this page (reads the selection if text is selected)"
+    },
+    "toggle-pause": {
+      "suggested_key": {
+        "default": "Alt+Shift+P"
+      },
+      "description": "Pause / resume reading"
+    },
+    "save-page": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Save this page as PDF / Word / Markdown"
+    },
+    "save-video": {
+      "suggested_key": {
+        "default": "Alt+Shift+V"
+      },
+      "description": "Download a video from this page"
+    },
+    "toggle-notes": {
+      "description": "Open / close the Notes sidebar on this page"
+    },
+    "highlight-selection": {
+      "description": "Highlight the selected text (Notes)"
+    }
+  },
+  "minimum_chrome_version": "116",
+  "optional_permissions": [
+    "downloads",
+    "pageCapture"
+  ]
+}

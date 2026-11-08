@@ -1,0 +1,7 @@
+/* Highlight colors for Notes. Inserted by the extension (not by the page), so a page's
+   content-security-policy can't block them. */
+::highlight(kn-yellow) { background-color: rgba(255, 214, 0, 0.45); color: inherit; }
+::highlight(kn-green)  { background-color: rgba(63, 191, 116, 0.40); color: inherit; }
+::highlight(kn-blue)   { background-color: rgba(74, 155, 255, 0.38); color: inherit; }
+::highlight(kn-pink)   { background-color: rgba(255, 110, 160, 0.40); color: inherit; }
+::highlight(kn-active) { background-color: rgba(255, 140, 0, 0.70); color: inherit; }

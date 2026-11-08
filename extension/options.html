@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PageMate – Settings</title>
+<style>
+  :root {
+    --bg: #f4f7f6; --card: #ffffff; --ink: #15201f; --muted: #5d6e6c; --line: #d8e1e0;
+    --accent: #1d7874; --accent-hover: #24918c; --ok: #1f7a4a; --err: #b33b2e; --field: #fbfcfc;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1615; --card: #16201f; --ink: #e8efee; --muted: #9fb3b1; --line: #2c3b3a;
+      --accent: #3fbfb5; --accent-hover: #57d0c6; --ok: #6fd39b; --err: #f08a7d; --field: #111a19;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 620px; margin: 40px auto; padding: 0 16px 60px; }
+  h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .lede { color: var(--muted); margin: 0 0 28px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; margin-bottom: 18px; }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  input[type=text], select {
+    flex: 1; min-width: 220px; font: inherit; color: var(--ink); background: var(--field);
+    border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px;
+  }
+  input[type=text]:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+  button {
+    font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 9px 16px; cursor: pointer;
+    background: var(--accent); color: #fff;
+  }
+  @media (prefers-color-scheme: dark) { button { color: #0d1514; } }
+  button:hover { background: var(--accent-hover); }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  button:disabled { opacity: .5; cursor: default; }
+  .help { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  .status { margin-top: 12px; font-size: 14px; min-height: 1.5em; }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--err); }
+  .speed { display: flex; align-items: center; gap: 12px; }
+  input[type=range] { flex: 1; accent-color: var(--accent); }
+  .speedval { font-variant-numeric: tabular-nums; font-weight: 600; width: 44px; text-align: right; }
+  .field + .field { margin-top: 18px; }
+  ul { margin: 0; padding-left: 20px; }
+  li { margin: 4px 0; }
+  kbd { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; background: var(--field); }
+  code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .locked { opacity: .55; pointer-events: none; }
+  label.check { display: flex; align-items: center; gap: 10px; font-weight: 500; font-size: 14px; cursor: pointer; }
+  label.check input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>PageMate</h1>
+  <p class="lede">Reads pages aloud with voices from your own Kokoro server. Page text goes to that server and nowhere else.</p>
+
+  <section>
+    <h2>1. Your Kokoro server</h2>
+    <label for="server">Server address</label>
+    <div class="row">
+      <input id="server" type="text" placeholder="http://192.168.1.50:8880" spellcheck="false" autocomplete="off">
+      <button id="connect">Connect</button>
+    </div>
+    <p class="help">The IP address and port of your Kokoro server. <code>/v1</code> is added automatically. When asked, allow the extension to access this address (and your local network, if the browser asks).</p>
+    <div id="connStatus" class="status" role="status"></div>
+  </section>
+
+  <section id="voiceSection" class="locked">
+    <h2>2. Voice and speed</h2>
+    <div class="field">
+      <label for="voice">Voice</label>
+      <div class="row">
+        <select id="voice"></select>
+        <button id="preview" class="ghost">Preview</button>
+      </div>
+      <p class="help">Voices starting with <code>a</code> are American English, <code>b</code> British; <code>f</code>/<code>m</code> = female/male. <code>af_heart</code> is a good start.</p>
+    </div>
+    <div class="field">
+      <label for="speed">Speed</label>
+      <div class="speed">
+        <input id="speed" type="range" min="0.5" max="2" step="0.05">
+        <span id="speedVal" class="speedval">1.0×</span>
+      </div>
+    </div>
+    <div id="voiceStatus" class="status" role="status"></div>
+  </section>
+
+  <section>
+    <h2>3. Reading</h2>
+    <label class="check"><input id="autoContinue" type="checkbox"> Keep reading when I go to another page in the same tab</label>
+    <p class="help">Handy for courses and multi-page articles: click “Next” and reading carries on with the new page. Turn off to stop reading whenever you leave a page.</p>
+  </section>
+
+  <section id="saveSection">
+    <h2>4. Saving pages and videos</h2>
+    <p class="help" style="margin-top:0">Save the page you’re on as a <b>PDF, Word or Markdown</b> file (with or without its images), or <b>download a video</b> from it for your own archive. Open it from the right-click menu on the toolbar icon, the right-click menu on a page or video, the buttons in the player, or <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd> / <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd>.</p>
+    <div class="row" style="align-items:center;margin-top:12px">
+      <button id="grantSave">Allow saving…</button>
+      <span id="grantStatus" class="status" style="margin:0" role="status"></span>
+    </div>
+    <p class="help">Needed once: access to the sites you save from (to read the page and fetch its images and videos) and to your Downloads folder. The extension still only touches a page when you ask it to.</p>
+    <div class="field">
+      <label for="saveFolder">Download videos into (a folder inside Downloads)</label>
+      <div class="row"><input id="saveFolder" type="text" placeholder="PageMate Archive" spellcheck="false" autocomplete="off"></div>
+    </div>
+    <label class="check"><input id="sniffVideos" type="checkbox"> Notice videos as pages load, so they can be downloaded even when the player hides them</label>
+    <p class="help">When on (and access is allowed), the extension remembers the <i>addresses</i> of video files and streams each tab loads — in memory, for this browser session only — so the Download a video list can show them. Nothing is sent anywhere. Videos protected by DRM can’t be saved.</p>
+  </section>
+
+  <section id="notesSection">
+    <h2>5. Notes</h2>
+    <p class="help" style="margin-top:0">Highlight text on any page, add notes and tags, and export them as <b>Markdown</b>. Your notes stay in this browser; nothing is uploaded.
+      Select text and right-click → <b>Highlight selection</b> (or <b>Highlight and add a note…</b>), or right-click the toolbar icon → <b>Notes for this page</b>.
+      Set your own keyboard shortcuts for <i>Open / close the Notes sidebar</i> and <i>Highlight the selected text</i> at <code>chrome://extensions/shortcuts</code>.</p>
+    <label class="check"><input id="notesAuto" type="checkbox"> Show my highlights again automatically on pages I’ve already annotated</label>
+    <p class="help">Needs the access allowed in “4. Saving pages and videos”. The extension only checks, on each page you open, whether you have notes for that exact page address; pages without notes are left alone.</p>
+    <p class="help">Also in Notes: citations, flashcards for Anki, video notes, Word/PDF export, and a sealed <b>Capture (evidence)</b> package on the Save page. The first sealed capture asks for one extra permission (“capture pages”).</p>
+    <div class="row" style="margin-top:12px"><button id="openNotes" class="ghost">Open “My notes”</button></div>
+  </section>
+
+  <section>
+    <h2>How to use it</h2>
+    <ul>
+      <li>Click the extension icon, or press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>, to read the page from where you are. Press again to stop.</li>
+      <li><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> pauses and resumes.</li>
+      <li>Hold <kbd>Alt</kbd> and click any paragraph to jump there, or press the ⌖ button in the player and then click a paragraph (useful if your desktop uses <kbd>Alt</kbd>+click to move windows).</li>
+      <li>With text selected, the icon or <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> reads just the selection.</li>
+      <li>Select text, right-click, and choose <b>Read selection aloud</b> to read just that part.</li>
+      <li>Shortcuts can be changed at <code>brave://extensions/shortcuts</code> (or <code>chrome://extensions/shortcuts</code>).</li>
+      <li>Right-click the toolbar icon for <b>Save page…</b> and <b>Download a video…</b>.</li>
+      <li>Pin the icon: click the puzzle-piece icon in the toolbar, then the pin next to PageMate.</li>
+    </ul>
+  </section>
+</main>
+<script src="common.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

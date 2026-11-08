@@ -1,0 +1,17 @@
+.kr-reading {
+  background-color: rgba(255, 214, 102, 0.38) !important;
+  box-shadow: 0 0 0 4px rgba(255, 214, 102, 0.38) !important;
+  border-radius: 3px !important;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+::highlight(kr-reading) {
+  background-color: rgba(255, 214, 102, 0.45);
+}
+.kr-jump-mode .kr-block:hover {
+  outline: 2px dashed rgba(29, 120, 116, 0.6) !important;
+  outline-offset: 2px !important;
+  cursor: pointer !important;
+}
+.kr-jump-mode, .kr-jump-mode * {
+  cursor: crosshair;
+}

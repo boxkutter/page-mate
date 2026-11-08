@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My notes</title>
+<link rel="stylesheet" href="doc.css">
+<style>
+  :root {
+    --bg: #f4f7f6; --card: #ffffff; --ink: #15201f; --muted: #5d6e6c; --line: #d8e1e0;
+    --accent: #1d7874; --accent-hover: #24918c; --ok: #1f7a4a; --err: #b33b2e; --field: #fbfcfc;
+    --yellow: #f2c200; --green: #3fbf74; --blue: #4a9bff; --pink: #ff6ea0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1615; --card: #16201f; --ink: #e8efee; --muted: #9fb3b1; --line: #2c3b3a; --accent: #3fbfb5; --accent-hover: #57d0c6; --ok: #6fd39b; --err: #f08a7d; --field: #111a19; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 20px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .lede { color: var(--muted); margin: 0 0 18px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+  input[type=search], select { font: inherit; color: var(--ink); background: var(--field); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; }
+  input[type=search] { flex: 1 1 260px; }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 8px 14px; cursor: pointer; background: var(--accent); color: #fff; }
+  @media (prefers-color-scheme: dark) { button { color: #0d1514; } }
+  button:hover { background: var(--accent-hover); }
+  button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  button.ghost:hover { background: var(--field); }
+  button.small { padding: 4px 10px; font-size: 13px; }
+  button:disabled { opacity: .5; cursor: default; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .chip { background: var(--card); border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 1px 10px; font-size: 13px; font-weight: 500; }
+  .chip.on { background: var(--accent); color: #fff; border-color: transparent; }
+  @media (prefers-color-scheme: dark) { .chip.on { color: #0d1514; } }
+  .status { min-height: 1.4em; font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .status.ok { color: var(--ok); } .status.err { color: var(--err); }
+  .page { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
+  .phead { display: flex; gap: 10px; align-items: flex-start; }
+  .phead input { margin-top: 6px; accent-color: var(--accent); width: 18px; height: 18px; }
+  .ptitle { flex: 1; min-width: 0; }
+  .ptitle a { color: var(--ink); font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+  .ptitle a:hover { text-decoration: underline; }
+  .pmeta { color: var(--muted); font-size: 12.5px; overflow-wrap: anywhere; }
+  .pnote { margin: 8px 0 0 28px; color: var(--muted); font-size: 14px; white-space: pre-wrap; }
+  .items { margin: 10px 0 0 28px; display: none; }
+  .page.open .items { display: block; }
+  .item { border-left: 4px solid var(--c, #888); padding: 4px 0 4px 10px; margin-bottom: 10px; }
+  .item .q { margin: 0; overflow-wrap: anywhere; }
+  .item .n { margin: 4px 0 0; color: var(--muted); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .item .m { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+  .item .m a { color: var(--accent); }
+  .item.orphan .q { opacity: .65; }
+  .c-yellow { --c: var(--yellow); } .c-green { --c: var(--green); } .c-blue { --c: var(--blue); } .c-pink { --c: var(--pink); }
+  mark { background: rgba(255, 214, 0, .45); color: inherit; border-radius: 2px; }
+  .empty { text-align: center; color: var(--muted); padding: 50px 10px; }
+  .help { color: var(--muted); font-size: 13px; margin-top: 24px; }
+  .case { display: inline-block; background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 0 7px; font-size: 12px; margin-right: 6px; color: var(--ink); }
+  .group-title { font-size: 13px; font-weight: 700; margin: 22px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .labels { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+  .labels label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+  .labels input { accent-color: var(--accent); }
+  table.log { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.log th, table.log td { text-align: left; border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: top; overflow-wrap: anywhere; }
+  table.log code { font: 11.5px ui-monospace, monospace; }
+  #printRoot { display: none; }
+  @media print { html, body { background: #fff !important; } #app { display: none !important; } #printRoot { display: block !important; } @page { margin: 0.8in; } }
+  kbd { font: 12px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; background: var(--field); }
+</style>
+</head>
+<body>
+<div id="app">
+<main>
+  <h1>My notes</h1>
+  <p class="lede">Everything you’ve highlighted and written, across pages. It all lives in this browser only.</p>
+
+  <div class="bar">
+    <input type="search" id="q" placeholder="Search every highlight, note and tag" aria-label="Search notes">
+  </div>
+  <div class="tags" id="cases" aria-label="Cases"></div>
+  <div class="tags" id="tags"></div>
+  <div class="bar">
+    <button class="ghost small" id="selAll">Select all shown</button>
+    <button class="ghost small" id="selNone">Select none</button>
+    <select id="format" aria-label="Export format">
+      <option value="md">Markdown (.md)</option>
+      <option value="docx">Word (.docx)</option>
+      <option value="pdf">PDF (print)</option>
+      <option value="anki-basic">Anki flashcards: highlight → note</option>
+      <option value="anki-cloze">Anki flashcards: fill-in-the-blank</option>
+    </select>
+    <select id="order" aria-label="Order in exported files"><option value="page">In page order</option><option value="label">Grouped by label</option></select>
+    <select id="cite" aria-label="Citation"><option value="">No citation</option><option value="apa">+ APA 7</option><option value="mla">+ MLA 9</option><option value="chicago">+ Chicago 17</option></select>
+    <button id="exportSel" disabled>Export selected</button>
+    <button class="ghost small" id="backup">Backup all (.json)</button>
+    <button class="ghost small" id="importBtn">Import backup…</button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+  </div>
+  <div class="bar labels" id="ankiLabels" hidden>Make cards from:
+    <label><input type="checkbox" value="yellow" checked> Key term</label><label><input type="checkbox" value="green" checked> Evidence</label>
+    <label><input type="checkbox" value="blue" checked> Question</label><label><input type="checkbox" value="pink"> Verify</label>
+    <span id="ankiHint"></span>
+  </div>
+  <div class="status" id="status" role="status"></div>
+  <div id="list"></div>
+
+  <h2 style="font-size:16px;margin:34px 0 6px">Capture log</h2>
+  <p class="lede" style="margin-bottom:8px">Every sealed capture you make is listed here with its manifest hash (see <i>Download → Capture (evidence)</i>). Kept in this browser; export it as a spreadsheet.</p>
+  <div class="bar"><button class="ghost small" id="logCsv">Export capture log (.csv)</button></div>
+  <div id="log"></div>
+  <p class="help">To start a new note, open any page, then right-click the extension icon → <b>Notes for this page</b>, or select text and
+    right-click → <b>Highlight selection</b>. You can also set keyboard shortcuts for <i>Open / close the Notes sidebar</i> and <i>Highlight the selected text</i>
+    at <code>chrome://extensions/shortcuts</code> (or <code>brave://extensions/shortcuts</code>).</p>
+</main>
+</div>
+<div id="printRoot"></div>
+<script src="common.js"></script>
+<script src="zip.js"></script>
+<script src="media.js"></script>
+<script src="docx.js"></script>
+<script src="render.js"></script>
+<script src="evidence.js"></script>
+<script src="notes-core.js"></script>
+<script src="notes-manager.js"></script>
+</body>
+</html>
