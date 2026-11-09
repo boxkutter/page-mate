@@ -12,7 +12,7 @@ any web page into something you can listen to, keep, and study from. It has no a
 - 📸 **Screenshots and screen recording**: selected area, visible part or whole page (mark up, redact, save, copy, share or seal), or record a screen, window or tab with sound
 - 📣 **Share** a page or quote to X, Bluesky, Mastodon, Reddit and more, with tracking codes removed (nothing is posted for you)
 
-> **Status:** version 1.7.0, not yet in the Chrome Web Store, so you install it from this repository (below).
+> **Status:** version 1.8.0, not yet in the Chrome Web Store, so you install it from this repository (below).
 > Its logic is covered by automated tests, and the whole extension is driven end-to-end in Chromium. It has had limited
 > real-world use, so please [report anything odd](https://github.com/boxkutter/page-mate/issues).
 

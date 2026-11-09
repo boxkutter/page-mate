@@ -69,6 +69,14 @@ const listFiles = d => { const out = []; const walk = p => { for (const f of fs.
       check('every frame decodes without errors', dec.status === 0 && dec.stderr.trim() === '', dec.stderr.slice(0, 160));
       const sha = require('crypto').createHash('sha256').update(fs.readFileSync(saved)).digest('hex');
       check('the SHA-256 shown equals the saved file’s', (await page.$eval('#info', e => e.textContent)).includes(sha));
+    {
+      const tags = spawnSync('ffprobe', ['-v', 'error', '-show_streams', '-select_streams', 'v:0', saved], { encoding: 'utf8' }).stdout;
+      check('the saved WebM no longer carries the “may have alpha” flag that makes Linux players refuse it', !/alpha_mode=1/.test(tags), (tags.match(/TAG:alpha_mode=\d/) || ['(no tag)'])[0]);
+      if (spawnSync('which', ['gst-launch-1.0']).status === 0) {
+        const g = spawnSync('gst-launch-1.0', ['-q', 'filesrc', 'location=' + saved, '!', 'decodebin', '!', 'fakesink'], { encoding: 'utf8', timeout: 40000 });
+        check('GStreamer (what GNOME Videos / Showtime use) decodes it without errors', !/^ERROR/m.test((g.stderr || '') + (g.stdout || '')), ((g.stderr || '') + (g.stdout || '')).trim().split('\n')[0].slice(0, 100));
+      }
+    }
     }
 
     // seal: signed

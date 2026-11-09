@@ -2,7 +2,11 @@
 
 All notable changes to PageMate. (Versions before the rename were called "Kokoro Page Reader".)
 
-## 1.7.0
+## 1.8.0
+- Fixed: **recordings now play in GNOME's Videos / Showtime and other GStreamer players** (Fedora, Ubuntu…). Chrome-family browsers tag every
+  WebM they record as "may contain alpha" even for screen capture; GStreamer then tries to decode an alpha channel that isn't there and the
+  player says it lacks a codec. PageMate now clears that one header byte when a recording finishes (the picture and sound are untouched), lists
+  the change in the recording's `recording-info.json`, and hashes the final file. To fix a recording made earlier, see the user guide.
 - Changed: **clicking the toolbar icon now shows a floating toolbox** in the page instead of starting the reader. It is a small panel of icons
   (Read aloud, Notes, Save page, Video, Audio, Images, Screenshot, Record screen, Investigate, Look up, Archive, Share) that sits in the
   bottom-left corner, **can be dragged anywhere** (it remembers where), **stays in front** and stays open until you close it (×, Esc or the icon
@@ -30,6 +34,8 @@ All notable changes to PageMate. (Versions before the rename were called "Kokoro
   **warns before closing with marks or a crop you haven't saved, copied or filed**.
 - Fixed: stopping the screen share during the recorder's countdown now cancels instead of recording nothing; closing the recorder with an unsaved
   recording asks first.
+
+## 1.7.0
 - New: **Investigate** (right-click → *Investigate this page…*, *Look up “…”*): **Look up** anything (address, domain, IP, email, hash, @handle,
   phone, coordinates, CVE, wallet, AS number, MAC, analytics id) in many services as plain links, with **defang / refang** and your own services;
   **Page entities** (everything on a page, CSV / Markdown); **Images & video** (EXIF / GPS / XMP / MP4 metadata, SHA-256, magnifier, error level

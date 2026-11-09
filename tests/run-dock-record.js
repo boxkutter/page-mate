@@ -142,6 +142,14 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Recorder T
     check('every frame decodes without errors', dec.status === 0 && decErr === '', decErr.slice(0, 120));
     const sha = require('crypto').createHash('sha256').update(fs.readFileSync(saved)).digest('hex');
     check('the fingerprint shown matches the saved file’s SHA-256', (await recText()).includes('SHA-256: ' + sha.slice(0, 16)));
+    {
+      const tags = spawnSync('ffprobe', ['-v', 'error', '-show_streams', '-select_streams', 'v:0', saved], { encoding: 'utf8' }).stdout;
+      check('the saved WebM no longer carries the “may have alpha” flag that makes Linux players refuse it', !/alpha_mode=1/.test(tags), (tags.match(/TAG:alpha_mode=\d/) || ['(no tag)'])[0]);
+      if (spawnSync('which', ['gst-launch-1.0']).status === 0) {
+        const g = spawnSync('gst-launch-1.0', ['-q', 'filesrc', 'location=' + saved, '!', 'decodebin', '!', 'fakesink'], { encoding: 'utf8', timeout: 40000 });
+        check('GStreamer (what GNOME Videos / Showtime use) decodes it without errors', !/^ERROR/m.test((g.stderr || '') + (g.stdout || '')), ((g.stderr || '') + (g.stdout || '')).trim().split('\n')[0].slice(0, 100));
+      }
+    }
   }
   check('saved recording: leaving the page no longer asks', !(await page.evaluate(() => !window.dispatchEvent(new Event('beforeunload', { cancelable: true })))));
 
@@ -169,6 +177,7 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Recorder T
     const t = spawnSync('openssl', ['ts', '-verify', '-data', 'manifest.json', '-in', 'timestamp.tsr', '-CAfile', tsa.caFile], { cwd: dir, encoding: 'utf8' });
     check('package: the trusted timestamp (asked for through the extension) verifies with openssl', /Verification: OK/.test(t.stdout + t.stderr), (t.stdout + t.stderr).trim().slice(0, 100));
     const ri = JSON.parse(fs.readFileSync(path.join(dir, 'recording-info.json'), 'utf8'));
+    check('recording-info lists the header adjustment (so the sealed file is fully explained)', Array.isArray(ri.adjustments) && ri.adjustments.length === 1 && /AlphaMode/.test(ri.adjustments[0].what) && /except for the header adjustment/.test(ri.note));
     check('recording-info: times, source kind, no sound, hash of the recording', ri.recorded_seconds > 1 && ri.source.kind && ri.audio.screen_or_tab_sound === false && /^[0-9a-f]{64}$/.test(ri.sha256_of_recording), JSON.stringify({ s: ri.recorded_seconds, k: ri.source.kind }));
     const mani = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
     check('manifest: case and name recorded, kind is screen recording', mani.case === 'Case 77' && mani.captured_by === 'Tester' && (mani.extra || {}).kind === 'screen recording', JSON.stringify({ c: mani.case, b: mani.captured_by }));

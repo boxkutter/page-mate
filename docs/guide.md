@@ -246,7 +246,16 @@ and **Discard**; an unsaved recording asks before it is thrown away. A **sealed*
 surface was shared, whether sound and microphone were on, the browser), the SHA-256 manifest and chain of custody, and the optional signature
 and trusted timestamp, like any other sealed capture.
 
-Things to know: the file is **not re-encoded**. WebM files from browsers usually have no duration header, so some players show no length or
+**Playing it on Linux.** Chrome-family browsers mark every WebM recording "may contain alpha", and GStreamer-based players (GNOME Videos /
+Showtime on Fedora, Ubuntu…) then refuse it with a "missing codec" message. PageMate clears that one header flag when a recording finishes
+(the picture and sound are untouched; `recording-info.json` lists the change), so new recordings open normally. For a recording made by an
+older version, either open it in VLC or mpv (not GStreamer-based), or make a playable copy (the original is not touched):
+
+```
+python3 -c "import sys;b=bytearray(open(sys.argv[1],'rb').read());i=b[:4096].find(b'\\x53\\xc0\\x81\\x01');assert i>=0,'flag not found';b[i+3]=0;open(sys.argv[2],'wb').write(b)" "My recording.webm" "My recording (playable).webm"
+```
+
+Things to know: the file is **not re-encoded** (apart from that one flag byte). WebM files from browsers usually have no duration header, so some players show no length or
 can't jump around; the length PageMate shows is measured. The recording is held in memory until you save it (it warns past 1.5 GB), and
 **closing the page (or the recorder window) discards it**. Nothing is uploaded, and no extra permission is needed. A trusted timestamp from the box needs the timestamp server allowed once (Settings → *Allow*). Only record what you're entitled to: other
 people's calls, windows and private messages may be covered by consent and privacy laws where you live.

@@ -122,14 +122,15 @@
     const ci = st.clock.info();
     const vs = st.meta.vs || {};
     const mime = st.rec.mimeType || st.meta.mime;
-    st.blob = new Blob(st.chunks, { type: mime.split(';')[0] });
+    const made = await R.fixWebm(new Blob(st.chunks, { type: mime.split(';')[0] }));   // clears the "has alpha" flag Linux players choke on
+    st.blob = made.blob;
     const startedAt = new Date(ci.startedAt);
     const fileName = R.fileBase(st.source.title, startedAt) + '.' + R.extFor(mime);
     st.info = R.buildInfo({
       startedAt: ci.startedAt, stoppedAt: ci.stoppedAt, activeMs: st.clock.activeMs(ci.stoppedAt), pausedMs: ci.pausedMs, pauses: ci.pauses,
       fileName, mime, size: st.blob.size, width: vs.width, height: vs.height, frameRate: vs.frameRate ? Math.round(vs.frameRate) : null,
       bitrate: R.bitrateFor($('quality').value) || null, surface: vs.displaySurface, pageUrl: st.source.url, pageTitle: st.source.title,
-      systemAudio: st.meta.hasSys, microphone: st.meta.hasMic, userAgent: navigator.userAgent
+      systemAudio: st.meta.hasSys, microphone: st.meta.hasMic, userAgent: navigator.userAgent, adjustments: made.adjustments
     });
     st.fileName = fileName; st.startedAt = startedAt; st.saved = false;
     cleanupStreams();
