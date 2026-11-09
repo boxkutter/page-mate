@@ -21,32 +21,10 @@ const sh = (args, opts = {}) => spawnSync('openssl', args, { cwd: dir, encoding:
   check('openssl parses our query with nonce, digest and cert request', shown.status === 0 && /Message data:/.test(shown.stdout) && /Certificate required: yes/.test(shown.stdout) && /Nonce: 0x/.test(shown.stdout), shown.stdout + shown.stderr);
   check('bad digest rejected', (() => { try { T.timestampQuery('abc'); return false; } catch (_) { return true; } })());
 
-  // ---- local time-stamp authority built with openssl
-  const w = (n, s) => fs.writeFileSync(path.join(dir, n), s);
-  sh(['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', 'ca.key', '-out', 'ca.crt', '-subj', '/CN=Test CA', '-days', '2']);
-  w('tsa.ext', 'basicConstraints=CA:FALSE\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=critical,timeStamping\n');
-  sh(['req', '-newkey', 'rsa:2048', '-nodes', '-keyout', 'tsa.key', '-out', 'tsa.csr', '-subj', '/CN=Test TSA']);
-  sh(['x509', '-req', '-in', 'tsa.csr', '-CA', 'ca.crt', '-CAkey', 'ca.key', '-CAcreateserial', '-out', 'tsa.crt', '-days', '2', '-extfile', 'tsa.ext']);
-  w('tsaserial', '01\n');
-  w('tsa.cnf', `[ tsa ]\ndefault_tsa = t\n[ t ]\ndir = ${dir}\nserial = ${dir}/tsaserial\ncrypto_device = builtin\nsigner_cert = ${dir}/tsa.crt\ncerts = ${dir}/tsa.crt\nsigner_key = ${dir}/tsa.key\nsigner_digest = sha256\ndefault_policy = 1.2.3.4.1\nother_policies = 1.2.3.4.5.6\ndigests = sha256\naccuracy = secs:1\nordering = yes\ntsa_name = yes\ness_cert_id_chain = no\ness_cert_id_alg = sha256\n`);
-  let mode = 'good';
-  const server = http.createServer((req, res) => {
-    const chunks = [];
-    req.on('data', c => chunks.push(c));
-    req.on('end', () => {
-      const body = Buffer.concat(chunks);
-      if (mode === 'down') { res.statusCode = 503; res.end('no'); return; }
-      if (mode === 'junk') { res.end('hello'); return; }
-      fs.writeFileSync(path.join(dir, 'req.tsq'), mode === 'other' ? fs.readFileSync(path.join(dir, 'ref.tsq')) : body);
-      const r = sh(['ts', '-reply', '-config', 'tsa.cnf', '-queryfile', 'req.tsq', '-out', 'resp.tsr']);
-      if (r.status !== 0) { res.statusCode = 500; res.end(r.stderr); return; }
-      res.setHeader('Content-Type', 'application/timestamp-reply');
-      res.end(fs.readFileSync(path.join(dir, 'resp.tsr')));
-    });
-  });
-  await new Promise(r => server.listen(0, '127.0.0.1', r));
-  const url = 'http://127.0.0.1:' + server.address().port + '/tsr';
-
+  const tsa = await require('./tsa-fixture.js')(dir);
+  const url = tsa.url;
+  let mode;
+  const setMode = m => tsa.setMode(m);
   const before = Date.now();
   const got = await T.requestTimestamp(url, digest);
   check('request to a TSA: granted, imprint matches, nonce echoed', got.info.granted && got.info.digestMatches === true && got.info.nonceMatches === true && got.info.hasCerts, JSON.stringify(got.info));
@@ -61,14 +39,14 @@ const sh = (args, opts = {}) => spawnSync('openssl', args, { cwd: dir, encoding:
   const vt = sh(['ts', '-verify', '-data', 'tampered.json', '-in', 'timestamp.tsr', '-CAfile', 'ca.crt']);
   check('a changed manifest fails verification', vt.status !== 0);
 
-  mode = 'other';
+  setMode('other');
   await T.requestTimestamp(url, digest).then(() => check('stamp of a different digest is refused', false), e => check('stamp of a different digest is refused', /different fingerprint|request number/.test(e.message), e.message));
-  mode = 'down';
+  setMode('down');
   await T.requestTimestamp(url, digest).then(() => check('server error is reported', false), e => check('server error is reported plainly', /503/.test(e.message), e.message));
-  mode = 'junk';
+  setMode('junk');
   await T.requestTimestamp(url, digest).then(() => check('junk answer is reported', false), e => check('junk answer is reported plainly', /valid time-stamp response/.test(e.message), e.message));
   await T.requestTimestamp('ftp://x', digest).then(() => check('bad address rejected', false), e => check('bad address rejected', /http/.test(e.message)));
-  server.close();
+  tsa.close();
   check('truncated or hostile responses do not throw anything but Error', [Buffer.alloc(0), Buffer.from([0x30]), Buffer.from([0x30, 0x84, 0xff, 0xff, 0xff, 0xff]), Buffer.from([0x30, 0x03, 0x30, 0x01, 0x00])].every(b => { try { T.parseTimestampResponse(b); return false; } catch (e) { return e instanceof Error; } }));
 
   // ---- signing
