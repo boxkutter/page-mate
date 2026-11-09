@@ -123,6 +123,33 @@
     <div class="row" style="margin-top:12px"><button id="openNotes" class="ghost">Open “My notes”</button></div>
   </section>
 
+  <section id="investigate">
+    <h2>6. Investigating, screenshots and evidence</h2>
+    <p class="help" style="margin-top:0">Right-click a page, a selection, an image or the toolbar icon for <b>Look up…</b>, <b>Reverse image search</b>, <b>Archive this page</b>, <b>Investigate this page…</b>, <b>Screenshot</b> and <b>Share…</b>. Nothing here sends anything by itself: lookups, archives and sharing are links that open in a new tab when you click them.</p>
+    <label class="check"><input id="recordHeaders" type="checkbox"> Note each page’s response headers as it loads (memory only)</label>
+    <p class="help">Lets the site profile and sealed captures show how a page was served (server, security headers, IP). Kept in memory for this browser session, per tab, with cookie values and credentials removed. Needs the “all sites” access from section 4.</p>
+    <div class="field">
+      <label for="customServices">Your own lookup links</label>
+      <textarea id="customServices" rows="5" spellcheck="false" placeholder='[ { "name": "My case tool", "types": ["domain", "ipv4"], "url": "https://intel.example.org/search?q={q}" } ]' style="width:100%;font:12.5px ui-monospace,monospace;padding:8px;border-radius:9px;border:1px solid var(--line,#ccc)"></textarea>
+      <p class="help"><code>types</code> can be <code>url email domain ipv4 ipv6 md5 sha1 sha256 cve btc eth asn mac latlon handle username phone analyticsId text</code> or <code>*</code> for everything. <code>{q}</code> is the encoded value; <code>{raw}</code>, <code>{user}</code>, <code>{domain}</code>, <code>{lat}</code>, <code>{lon}</code> are also available.</p>
+      <div id="customStatus" class="status" role="status"></div>
+    </div>
+    <h2 style="margin-top:22px">Signing and timestamps for sealed captures</h2>
+    <div class="field"><label for="tsaUrl">Trusted-timestamp server (RFC 3161)</label>
+      <div class="row"><input id="tsaUrl" type="text" spellcheck="false" autocomplete="off" placeholder="https://freetsa.org/tsr"></div>
+      <p class="help">Used when you tick “Add a trusted timestamp” on a sealed capture or screenshot. Only the SHA-256 of the manifest is sent. Presets: FreeTSA <code>https://freetsa.org/tsr</code>, DigiCert <code>https://timestamp.digicert.com</code>, Sectigo <code>https://timestamp.sectigo.com</code>.</p></div>
+    <div class="field"><label>Signing key</label>
+      <div id="keyInfo" class="help" style="margin:0 0 6px"></div>
+      <div class="row"><button id="keyMake" class="ghost">Create a key</button><button id="keyCopy" class="ghost" hidden>Copy public key</button><button id="keyForget" class="ghost" hidden>Delete the key</button></div>
+      <p class="help">A key is made the first time you sign something. It stays in this browser’s extension storage; anyone who can open your browser profile could use it, and deleting it means earlier signatures can still be checked with the public key but you can’t make new ones with it. Note the fingerprint with the person it belongs to.</p></div>
+    <h2 style="margin-top:22px">Sharing</h2>
+    <div class="row">
+      <div class="field" style="flex:1 1 220px"><label for="shareInstance">Your Mastodon server</label><input id="shareInstance" type="text" placeholder="mastodon.social" spellcheck="false"></div>
+      <div class="field" style="flex:1 1 220px"><label for="shareHashtags">Default hashtags</label><input id="shareHashtags" type="text" placeholder="OSINT, verification"></div>
+    </div>
+    <label class="check"><input id="shareClean" type="checkbox"> Remove tracking codes (utm_…, fbclid, gclid …) from shared links</label>
+  </section>
+
   <section>
     <h2>How to use it</h2>
     <ul>
@@ -138,6 +165,9 @@
   </section>
 </main>
 <script src="common.js"></script>
+<script src="osint-core.js"></script>
+<script src="trust.js"></script>
+<script src="seal.js"></script>
 <script src="options.js"></script>
 </body>
 </html>

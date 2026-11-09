@@ -237,6 +237,14 @@
         <div class="field"><label for="capBy">Captured by</label><input type="text" id="capBy" placeholder="Your name"></div>
         <div class="field"><label for="capNote">Examiner’s note (optional)</label><textarea id="capNote" rows="3" style="width:100%;font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:9px;padding:7px 10px" placeholder="Why this page was captured, how it was found…"></textarea></div>
         <label class="choice"><input type="checkbox" id="capNotes" checked><span>Include my highlights and notes (if any)</span></label>
+        <label class="choice"><input type="checkbox" id="capShot" checked><span>Full-page screenshot (PNG)<small>Briefly switches to the page and scrolls it. Needs access to the site.</small></span></label>
+        <label class="choice"><input type="checkbox" id="capDetails" checked><span>Page details<small>Response headers (cookie values removed), metadata, links, entities, technologies, hidden text</small></span></label>
+        <label class="choice" id="capTrailRow" hidden><input type="checkbox" id="capTrail" checked><span>My trail for this case<small id="capTrailInfo"></small></span></label>
+        <fieldset style="margin-top:10px"><legend>Prove it later</legend>
+        <label class="choice"><input type="checkbox" id="capSign"><span>Sign with this browser’s key<small>Shows the package is unchanged and came from this browser. The key is created on first use and stays here.</small></span></label>
+        <label class="choice"><input type="checkbox" id="capStamp"><span>Add a trusted timestamp (RFC 3161)<small>Sends only the manifest’s SHA-256 fingerprint to the authority, not the page.</small></span></label>
+        <div class="field" id="capTsaRow" hidden style="margin:4px 0 0 26px"><select id="capTsa"></select><input type="text" id="capTsaCustom" placeholder="https://your-timestamp-server/…" hidden style="margin-top:6px;width:100%"></div>
+        </fieldset>
         <button class="go" id="capGo" style="margin-top:12px">Capture and seal</button>
         <div class="status" id="capStatus" role="status"></div>
       </div>
@@ -247,9 +255,11 @@
           <li><b>capture.mhtml</b> — the page exactly as this browser has it now, in a single file that opens in any Chromium browser</li>
           <li><b>page-text.txt</b> — the readable text of the page</li>
           <li><b>notes.md / notes.json</b> — your highlights and notes, if you have any</li>
+          <li><b>screenshot.png</b>, <b>page-details.json</b>, <b>headers.json</b>, <b>entities.csv</b>, <b>trail.csv</b> — what the page looked like, how it was served, what it contains, and what you looked at, when you choose them</li>
+          <li><b>manifest.sig</b>, <b>timestamp.tsr</b> — optional signature and trusted timestamp, checkable with <code>openssl</code></li>
           <li><b>manifest.json</b>, <b>SHA256SUMS</b> and <b>chain-of-custody.md</b> — when it was captured (UTC), by whom, the address, the browser, and a SHA-256 fingerprint of every file. Anyone can check the package is unchanged with <code>sha256sum -c SHA256SUMS</code></li>
         </ul>
-        <p class="hint"><b>Honest limits:</b> the time comes from this computer’s clock and is not verified by an outside authority, and the files are fingerprinted, not digitally signed. Keep the manifest fingerprint shown after capture somewhere independent (email it to yourself, a case system, a notary). Content that loads later or differs per visitor may not be in a snapshot.</p>
+        <p class="hint"><b>Honest limits:</b> unless you add a trusted timestamp, the time comes from this computer’s clock and is not verified by an outside authority; unless you sign it, the files are fingerprinted, not digitally signed. Keep the manifest fingerprint shown after capture somewhere independent (email it to yourself, a case system, a notary). Content that loads later or differs per visitor may not be in a snapshot.</p>
         <div id="capResult" hidden style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--field)">
           <b>Manifest fingerprint (SHA-256)</b><div id="capHash" style="font:12.5px ui-monospace,monospace;overflow-wrap:anywhere;margin:6px 0"></div>
           <button class="ghost small" id="capCopy">Copy fingerprint</button>
@@ -272,6 +282,11 @@
 <script src="notes-dom.js"></script>
 <script src="evidence.js"></script>
 <script src="vendor/ts2mp4.min.js"></script>
+<script src="osint-core.js"></script>
+<script src="osint-page.js"></script>
+<script src="shot-store.js"></script>
+<script src="trust.js"></script>
+<script src="seal.js"></script>
 <script src="save.js"></script>
 </body>
 </html>

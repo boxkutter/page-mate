@@ -575,6 +575,23 @@
     return out;
   }
 
+  // ---------- response headers ----------
+
+  // webRequest gives [{name, value}]. -> { lowercase-name: value } with secrets removed:
+  // cookie VALUES and credentials never go into evidence or screenshots of the profile.
+  function headerMap(list) {
+    const out = {};
+    for (const h of list || []) {
+      if (!h || !h.name) continue;
+      const k = String(h.name).toLowerCase();
+      let v = h.value == null ? '' : String(h.value);
+      if (k === 'set-cookie') v = v.replace(/^([^=;]+)=[^;]*/, '$1=[redacted]');
+      else if (k === 'authorization' || k === 'proxy-authorization' || k === 'cookie') v = '[redacted]';
+      out[k] = k in out ? out[k] + (k === 'set-cookie' ? '\n' : ', ') + v : v;
+    }
+    return out;
+  }
+
   // ---------- a page's technical profile ----------
 
   const TECH = [
@@ -691,7 +708,7 @@
     archiveLinks, cdxUrl, parseCdx, parseAvailability, wbDate,
     dork, DORK_PRESETS, SEARCH_ENGINES, searchUrl,
     cleanUrl, shareWarnings, SHARE_CHANNELS, composeText, shareLinks, mastodonInstance,
-    detectTech, securityHeaders, externalHosts, registrable, isTracker, hostOf
+    detectTech, securityHeaders, externalHosts, headerMap, registrable, isTracker, hostOf
   };
   root.KOsint = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

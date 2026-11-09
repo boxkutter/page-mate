@@ -60,7 +60,27 @@
     return root.KRZip.createZip(entries.map(e => ({ ...e, name: base + '/' + e.name })), { date });
   }
 
-  const api = { build, zipEntries, README };
+  // ---- browser-only helpers (extension pages) ----
+  const KEY_STORE = 'ko:signkey';
+  // The signing key lives in this browser's extension storage. Anyone who can read the profile can use it; say so in the UI.
+  async function getSigningKey(create = true) {
+    const got = (await chrome.storage.local.get(KEY_STORE))[KEY_STORE];
+    if (got && got.privateJwk) return got;
+    if (!create) return null;
+    const k = await root.KOTrust.generateSigningKey();
+    await chrome.storage.local.set({ [KEY_STORE]: k });
+    return k;
+  }
+  async function forgetSigningKey() { await chrome.storage.local.remove(KEY_STORE); }
+  // Must be called straight from a click so the browser can show its prompt.
+  async function ensureOriginAccess(url) {
+    let origin;
+    try { origin = new URL(url).origin + '/*'; } catch (_) { throw new Error('That isn’t a valid address: ' + url); }
+    if (await chrome.permissions.contains({ origins: [origin] }).catch(() => false)) return true;
+    return chrome.permissions.request({ origins: [origin] });
+  }
+
+  const api = { build, zipEntries, README, getSigningKey, forgetSigningKey, ensureOriginAccess };
   root.KNSeal = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);

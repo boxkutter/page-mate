@@ -5,7 +5,13 @@ const KR_DEFAULTS = {
   // Saving pages / videos
   sniffVideos: true, saveFolder: 'PageMate Archive',
   // Notes
-  notesAuto: true, knOrder: 'page'
+  notesAuto: true, knOrder: 'page',
+  // Investigate
+  recordHeaders: true,            // remember each page's response headers (in memory) for the site profile / evidence
+  customServices: '',             // JSON list of extra lookup links
+  shareInstance: '', shareHashtags: '', shareClean: true,
+  // Sealed captures
+  capSign: false, capTimestamp: false, tsaUrl: 'https://freetsa.org/tsr', capShot: true
 };
 const KR_ALL_SITES = ['http://*/*', 'https://*/*'];
 const KR_MIN_SPEED = 0.5;

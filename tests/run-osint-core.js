@@ -90,5 +90,8 @@ const ext = K.externalHosts('https://www.example.co.uk/', ['https://cdn.example.
 check('external hosts: own site excluded (co.uk aware), trackers first, counted', ext.length === 3 && ext[0].tracker && ext.find(e => e.domain === 'gstatic.com').count === 2 && !ext.some(e => e.domain.includes('example.co.uk')), JSON.stringify(ext.map(e => e.domain)));
 check('registrable()', K.registrable('a.b.example.com') === 'example.com' && K.registrable('a.b.example.co.uk') === 'example.co.uk' && K.registrable('1.2.3.4') === '1.2.3.4');
 
+const hm = K.headerMap([{ name: 'Set-Cookie', value: 'sid=SECRET123; Path=/; HttpOnly' }, { name: 'Set-Cookie', value: 'a=1; Secure' }, { name: 'Server', value: 'nginx' }, { name: 'Authorization', value: 'Bearer abc' }, { name: 'Link', value: '<a>' }, { name: 'Link', value: '<b>' }]);
+check('headerMap: lower-cased, cookie values and credentials redacted, duplicates joined', hm.server === 'nginx' && hm['set-cookie'] === 'sid=[redacted]; Path=/; HttpOnly\na=[redacted]; Secure' && !JSON.stringify(hm).includes('SECRET123') && hm.authorization === '[redacted]' && hm.link === '<a>, <b>');
+
 console.log(failed ? '\n' + failed + ' FAILED' : '\nAll osint-core tests passed');
 process.exit(failed ? 1 : 0);

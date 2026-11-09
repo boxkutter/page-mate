@@ -192,8 +192,46 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+// ---------- investigating / evidence ----------
+
+async function renderKey() {
+  const k = await KNSeal.getSigningKey(false).catch(() => null);
+  const info = $('keyInfo');
+  $('keyMake').hidden = !!k; $('keyCopy').hidden = !k; $('keyForget').hidden = !k;
+  if (!k) { info.textContent = 'No key yet.'; return; }
+  const pub = await KOTrust.publicKeyInfo(k.publicJwk);
+  info.textContent = 'Key created ' + k.created.slice(0, 10) + '. Fingerprint (SHA-256 of the public key): ' + pub.fingerprint;
+  $('keyCopy').onclick = async () => { try { await navigator.clipboard.writeText(pub.pem); $('keyCopy').textContent = 'Copied'; setTimeout(() => { $('keyCopy').textContent = 'Copy public key'; }, 1500); } catch (_) {} };
+}
+$('keyMake').addEventListener('click', async () => { await KNSeal.getSigningKey(true); renderKey(); });
+$('keyForget').addEventListener('click', async () => { if (confirm('Delete the signing key from this browser? You will not be able to sign new captures with it.')) { await KNSeal.forgetSigningKey(); renderKey(); } });
+
+$('recordHeaders').addEventListener('change', () => chrome.storage.sync.set({ recordHeaders: $('recordHeaders').checked }));
+$('tsaUrl').addEventListener('change', () => {
+  const v = $('tsaUrl').value.trim();
+  if (v && !/^https?:\/\//i.test(v)) { return; }
+  chrome.storage.sync.set({ tsaUrl: v || 'https://freetsa.org/tsr' });
+});
+$('shareInstance').addEventListener('change', () => { const v = KOsint.mastodonInstance($('shareInstance').value); $('shareInstance').value = v; chrome.storage.sync.set({ shareInstance: v }); });
+$('shareHashtags').addEventListener('change', () => chrome.storage.sync.set({ shareHashtags: $('shareHashtags').value.trim() }));
+$('shareClean').addEventListener('change', () => chrome.storage.sync.set({ shareClean: $('shareClean').checked }));
+$('customServices').addEventListener('input', () => {
+  const text = $('customServices').value;
+  const r = KOsint.parseCustomServices(text.trim() || '[]');
+  if (r.errors.length) { status($('customStatus'), r.errors.join(' · '), 'err'); return; }   // not saved until it is valid
+  status($('customStatus'), text.trim() ? r.services.length + ' link' + (r.services.length === 1 ? '' : 's') + ' saved.' : '', 'ok');
+  chrome.storage.sync.set({ customServices: text.trim() });
+});
+
 (async () => {
   settings = await chrome.storage.sync.get(KR_DEFAULTS);
+  $('recordHeaders').checked = settings.recordHeaders !== false;
+  $('tsaUrl').value = settings.tsaUrl || '';
+  $('shareInstance').value = settings.shareInstance || '';
+  $('shareHashtags').value = settings.shareHashtags || '';
+  $('shareClean').checked = settings.shareClean !== false;
+  $('customServices').value = settings.customServices || '';
+  renderKey();
   serverEl.value = settings.serverUrl || '';
   speedEl.value = krClampSpeed(settings.speed);
   showSpeed(settings.speed);
