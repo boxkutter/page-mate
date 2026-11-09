@@ -81,13 +81,32 @@ the page as the browser holds it (`capture.mhtml`), its readable text, your note
 fingerprint of every file. Check a package any time with `sha256sum -c SHA256SUMS` (a changed byte fails). The *My notes* page keeps
 a **capture log** you can export as a spreadsheet.
 
-**Know the limits.** The time is your computer's clock, not an independent authority, and the files are fingerprinted, not
-digitally signed. Keep the *manifest fingerprint* shown after capture somewhere independent of the package (an email to yourself,
-a case system, a notary) so you can later show it is unchanged. A snapshot may miss content that loads later or differs per visitor.
-This is a careful record, not legal advice; ask your own counsel what a court will accept.
+Choose what goes in:
 
-- Keyboard shortcuts for opening the sidebar and highlighting aren't set by default (the browser allows only four default
-  shortcuts); set them at `brave://extensions/shortcuts` if you like.
+| Option | Adds | Notes |
+|---|---|---|
+| Full-page screenshot | `screenshot.png` | Switches to the page for a moment, scrolls and stitches. Needs "all sites" access. |
+| Page details | `page-details.json`, `headers.json`, `entities.csv` | How the page was served (server, IP, security headers; **cookie values and credentials are removed**), its metadata, technologies, other sites it loads from, hidden text, HTML comments, and every email, phone, domain, IP, handle and hash on it. |
+| My trail for this case | `trail.csv` | Pages you visited for this case, if you turned the [Trail](#investigate) on. |
+| Sign with this browser's key | `manifest.sig`, `signer-public-key.pem` | An ECDSA P-256 signature over `manifest.json`. Proves the manifest is unchanged and came from the holder of that key. The key is made on first use and stays in this browser; note its fingerprint (Settings) with the person it belongs to. |
+| Trusted timestamp (RFC 3161) | `timestamp.tsr`, `timestamp.tsq` | An independent time-stamping authority (FreeTSA, DigiCert, Sectigo, or your own) signs the manifest's fingerprint. **Only that fingerprint is sent, not the page.** This replaces "the time is my computer's clock" with the authority's time. |
+
+Signatures and timestamps are checked with plain `openssl`; the exact commands are written into `chain-of-custody.md`:
+
+```bash
+sha256sum -c SHA256SUMS
+openssl dgst -sha256 -verify signer-public-key.pem -signature manifest.sig manifest.json      # Verified OK
+openssl ts -verify -data manifest.json -in timestamp.tsr -CAfile <authority-root.pem>        # Verification: OK
+```
+
+If the timestamp server can't be reached, the capture is still sealed, and the chain-of-custody record says plainly that a
+timestamp was requested and not obtained.
+
+**Know the limits.** Without a trusted timestamp the time is your computer's clock; without a signature the files are
+fingerprinted, not signed. Even with both, they show *the manifest existed then, from that key*, not that the page looked the same
+to everyone else. Keep the *manifest fingerprint* shown after capture somewhere independent of the package (an email to yourself,
+a case system, a notary). A snapshot may miss content that loads later or differs per visitor. This is a careful record, not legal
+advice; ask your own counsel what a court will accept.
 
 ## Web page with playable videos
 
@@ -136,6 +155,65 @@ or right-click directly on a video → **Download this video…**, which jumps s
   reuses your browser's login.
 - Only save videos you are entitled to keep, e.g. course material you're enrolled in, for your own use.
 
+## Investigate
+
+Open it from the right-click menu (**Investigate this page…**, **Look up “…”**, **Reverse image search**, **Archive this page**, **Share…**),
+from the toolbar icon's right-click menu, or with a shortcut you set at `brave://extensions/shortcuts`. It has tabs:
+
+- **Look up**: paste or select anything: a web address, domain, IP, email, file hash, `@handle`, phone number, map coordinates,
+  CVE, Bitcoin/Ethereum address, AS number, MAC address or analytics id. PageMate recognises it and lists matching places to look
+  it up (search engines, VirusTotal, urlscan, crt.sh, RDAP/WHOIS, Shodan/Censys, AbuseIPDB, blockchain explorers, maps, profile pages…).
+  They are **plain links that open in a new tab**; PageMate sends nothing itself. Addresses written as `hxxps://evil[.]example[.]com`
+  are understood, and **Defang / Refang** convert between that form and a real link. Add your own services in Settings.
+- **Page entities**: reads the page and lists every email, phone number, handle, link, domain, IP, hash, CVE, crypto address,
+  coordinate and analytics id on it (including in `mailto:`/`tel:` links, metadata, comments and hidden text). Filter, look one up,
+  copy, or save as CSV / Markdown. Everything happens in your browser.
+- **Images & video**: *Inspect a file* (drop one in, choose one, or fetch by address) shows its **SHA-256**, and its **metadata**: camera,
+  time, software, serial numbers, **GPS position** (with map links), XMP/edit history, PNG text, MP4 creation time and location. Notes
+  explain what stands out, and remind you that **missing metadata proves nothing** (most platforms strip it) and **present metadata is easy
+  to fake**. Also: a magnifier with mirror / invert / contrast / brightness, **error level analysis** (a pointer for where to look, never a
+  verdict), **reverse image search** on Google Lens, Bing, Yandex, TinEye and Baidu (by address, or copy-and-paste for files and video
+  frames), and **frames from a video** at even intervals.
+- **Archive**: links to the Wayback Machine and archive.today for the address; **List saved copies** (asks archive.org); **Save now and
+  record the link** (asks the Internet Archive to fetch the page; recorded links are added to your sealed captures of that page).
+- **Site profile**: server, IP, status, security headers present / missing, a short list of recognised technologies, analytics and ad-account
+  ids (sites sharing one are often run by the same people), other sites the page loads from with known trackers marked, declared metadata and
+  JSON-LD, text visitors can't see, and comments left in the HTML. The technology list is deliberately small and can miss things.
+- **Search operators**: a form that builds `site:`, `filetype:`, `intitle:`, exact-phrase, `after:` / `before:` searches and opens them in
+  Google, Bing, DuckDuckGo, Yandex or Brave, plus ready-made searches (documents on a site, subdomains, mentions elsewhere, a person on professional networks).
+- **Share**: see below.
+- **Trail**: when switched on for a case, each page you finish loading is noted (time, address, title) in this browser, so you can show what
+  you looked at and when. Off by default; needs the optional "tabs" permission; never records private windows; export as CSV. It is a log, not proof on its own.
+
+What it deliberately does not do: scrape social networks, look people up in bulk, identify faces, search breached-credential lists, or hide that
+you are a browser. Lookups are links you open yourself. Check what you find: automated matching has false positives.
+
+## Screenshots
+
+Right-click → **Screenshot** (or the toolbar icon's menu, or a shortcut you set for "Screenshot: select an area"):
+
+- **Selected area**: drag a rectangle; Esc cancels.
+- **Visible part of the page**.
+- **Whole page**: scrolls and stitches. Sticky headers appear once, at the top; the page is put back as it was. Pages taller than a browser can
+  draw in one image (about 16,000 pixels) are cut off, and the viewer says so. Scrolling areas *inside* a page (single-page apps with their own
+  scrollbars) are captured as shown, not scrolled.
+
+The screenshot opens in a viewer where you can **mark it up** (box, arrow, highlighter, text), **Redact** (solid black) or **Pixelate**, **crop**,
+undo, then **save as PNG or JPEG**, **copy** it, **share** it, or **seal it as evidence**. Marks are drawn on top of an untouched original; saved
+and copied images have them burned in, so a redaction really removes what is under it. A sealed screenshot package holds the original, the marked
+version if you made one, the page address and headers, and the usual manifest, fingerprints and chain of custody, with the optional signature and
+trusted timestamp. Screenshots wait in the browser for a day, then are discarded.
+
+## Share
+
+Right-click → **Share…** (or the **Share** tab). Edit the link, a comment and a quote (your selection is filled in), choose hashtags, and
+click a service: **X, Bluesky, Mastodon** (your own server), **Threads, Reddit, LinkedIn, Facebook, Telegram, WhatsApp, Hacker News, email**.
+Each opens that service's own sharing window with the text filled in; you still press Post there. PageMate has no accounts, posts nothing and
+keeps nothing. It **removes tracking codes** (`utm_…`, `fbclid`, `gclid` …) from the link, keeps the text inside each service's length limit,
+and **warns** when a link looks private: a signed or token address, a local address, a sign-in or account page. **Share image…** in the
+screenshot viewer uses your device's share sheet where available; elsewhere the social buttons copy the picture first so you can paste it into the post.
+Think before sharing anything that could identify a source, a victim or a private person.
+
 ## Troubleshooting
 
 - **"Can't reach your Kokoro server"**: check that the Kokoro server is running, that
@@ -160,3 +238,8 @@ or right-click directly on a video → **Download this video…**, which jumps s
   extension also notes the *addresses* of video files and streams each tab loads (in memory, for the current browser
   session only) so they can be offered for download. Turn that off in settings under **Saving pages and videos**.
   Pages are only read when you open the Save tab.
+- **Investigate, screenshots and sharing** run in your browser. Lookups, archives and share buttons are links you click: the service you
+  open learns what you asked, as if you had typed it there. Three actions contact a service directly, and only when you click them:
+  *List saved copies* / *Save now* (archive.org), a **trusted timestamp** (the SHA-256 of the manifest goes to the authority you chose),
+  and *Fetch* of an image or video by address (to the site that hosts it). With access to sites allowed, PageMate notes each page's response
+  headers (memory only, per tab, cookie values removed); turn that off in settings. The **trail** is off unless you switch it on.

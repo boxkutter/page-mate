@@ -7,9 +7,12 @@ any web page into something you can listen to, keep, and study from. It has no a
 - 📄 **Save a page** as a clean **PDF**, editable **Word (.docx)**, **Markdown**, or an **offline web page with playable videos**
 - 🎬 **Download videos, images and audio** from pages you're entitled to keep (course material, lectures, your own content)
 - 🖍️ **Highlight and take notes** that stay attached to the exact words, with Markdown export, citations, Anki flashcards and video timestamps
-- 🔒 **Capture & seal** a page into a SHA-256 fingerprinted evidence package with a chain-of-custody record
+- 🔒 **Capture & seal** a page into a SHA-256 fingerprinted evidence package with a chain-of-custody record, optionally **signed** and with an independent **trusted timestamp** you can verify with `openssl`
+- 🔎 **Investigate**: look up any address, IP, email, hash, handle or coordinate in one click; list everything on a page; check images and video (EXIF/GPS, reverse search, keyframes); see archived copies; profile a site
+- 📸 **Screenshots**: selected area, visible part or whole page; mark up, redact, save, copy, share or seal
+- 📣 **Share** a page or quote to X, Bluesky, Mastodon, Reddit and more, with tracking codes removed (nothing is posted for you)
 
-> **Status:** version 1.6.0, not yet in the Chrome Web Store, so you install it from this repository (below).
+> **Status:** version 1.7.0, not yet in the Chrome Web Store, so you install it from this repository (below).
 > Its logic is covered by automated tests, and the whole extension is driven end-to-end in Chromium. It has had limited
 > real-world use, so please [report anything odd](https://github.com/boxkutter/page-mate/issues).
 
@@ -58,6 +61,12 @@ asks, pick a voice, press **Preview**, and set the speed.
 | Highlight and annotate | Select text → right-click → **Highlight selection**, or right-click the icon → **Notes for this page** |
 | Export notes | The ⤓ button in the notes sidebar (Markdown is the main format), or **All my notes…** for everything |
 | Capture an evidence copy of a page | Save page → **Capture (evidence)** tab |
+| Look something up (address, IP, email, hash, @handle, coordinates…) | Select it → right-click → **Look up “…”** |
+| List the emails, phones, domains, IPs on a page | Right-click the page → **Investigate this page…** |
+| Reverse-search an image, or read its metadata | Right-click the image → **Reverse image search** / **Image metadata and checks…** |
+| See or save an archived copy | Right-click → **Archive this page** |
+| Take a screenshot | Right-click → **Screenshot** → selected area / visible / whole page |
+| Share a page or a quote | Right-click → **Share…** |
 
 Keyboard shortcuts can be changed at `brave://extensions/shortcuts`. Notes shortcuts have no default keys, because browsers allow only four.
 
@@ -77,11 +86,14 @@ Keyboard shortcuts can be changed at `brave://extensions/shortcuts`. Notes short
 | `storage` | Remember settings and your notes |
 | `offscreen` | Play audio while the page is in the background |
 | `contextMenus` | The right-click menu entries |
-| `webRequest` (needs your approval) | Notice the addresses of video files a tab loads, so they can be offered for download. Kept in memory for the session; can be turned off in settings |
+| `webRequest` (needs your approval) | Notice the addresses of video files a tab loads, so they can be offered for download, and each page's response headers (cookie values removed) for the site profile and evidence. Kept in memory for the session; each can be turned off in settings |
 | `declarativeNetRequestWithHostAccess` | Send the page's own address as the Referer while downloading a video, as the player would |
 | *Optional:* all sites | Asked for when you click **Allow** on the Save page: to fetch images and media and to bring highlights back automatically |
 | *Optional:* `downloads` | Asked for when you first save a file |
 | *Optional:* `pageCapture` | Asked for when you first seal an evidence capture |
+| *Optional:* `tabs` | Asked only if you switch on the **Trail** (a log of pages you visit for a case) |
+| *Optional:* a timestamp server | Asked when you tick "Add a trusted timestamp"; only the manifest's SHA-256 is sent |
+| *Optional:* archive.org, a media host | Asked when you list/save archived copies or fetch an image or video by address |
 
 ## Responsible use
 
@@ -89,7 +101,9 @@ Keyboard shortcuts can be changed at `brave://extensions/shortcuts`. Notes short
   responsible for following the site's terms and the law where you live.
 - PageMate **refuses DRM-protected video** (it does not try to get around it) and live streams.
 - PageMate is an independent project. It is not affiliated with, or endorsed by, any website, course platform or video host it can work with.
-- **Capture & seal** produces a careful, checkable record. It is not legal advice and not a guarantee of what a court will accept: the time comes from your computer's clock and the files are fingerprinted, not digitally signed.
+- **Investigate is for lawful, proportionate research** (journalism, verification, security, academic work). PageMate gives you links and local analysis; it does not scrape social networks, search breached-credential lists, identify faces or help you hide. Lookups tell the service you open what you searched for. Information found about private individuals deserves care; before you **share**, think about sources, victims and privacy.
+- Metadata and *error level analysis* are leads to check, never proof; missing metadata proves nothing; automated matches (phone numbers, handles) can be wrong.
+- **Capture & seal** produces a careful, checkable record. It is not legal advice and not a guarantee of what a court will accept: unless you add a trusted timestamp the time comes from your computer's clock, and unless you sign it the files are fingerprinted, not digitally signed.
 - Citations are generated from page details and can be wrong. Check them against your style guide.
 
 ## Limitations
@@ -98,6 +112,8 @@ Keyboard shortcuts can be changed at `brave://extensions/shortcuts`. Notes short
 - Highlights and notes work in the page itself, not in embedded frames or PDFs.
 - Video: plain files and HLS (`.m3u8`) streams. Not supported: DRM, live streams, DASH (`.mpd`). Streams with a separate audio track can't be combined in the offline web page.
 - Files over about 1.5 GB are too big to convert to MP4 inside the browser.
+- Whole-page screenshots are cut off at about 16,000 pixels tall (the browser's canvas limit), and don't scroll panels *inside* a page.
+- The technology list in the site profile is short and matched on visible clues; reverse-image links and lookup services are third-party addresses that can change.
 - The Anki export follows Anki's documented import format but hasn't been opened in Anki itself; try one small export first.
 
 ## Development
@@ -120,7 +136,8 @@ npm run package              # dist/pagemate-<version>.zip
 
 The browser tests need a Chromium that allows `--load-extension` (Chromium or "Chrome for Testing"; branded Chrome 137+ does not).
 They look for Playwright's Chromium and common system paths, or you can set `CHROME=/path/to/chromium`. Some tests also use
-`ffmpeg`/`ffprobe`, `sha256sum` and LibreOffice when present.
+`ffmpeg`/`ffprobe`, `sha256sum`, `openssl` (to check signatures and timestamps independently) and LibreOffice when present.
+Run Chromium with a UTF-8 locale (`LANG=C.UTF-8`); without one, Chromium refuses file names containing characters like "–".
 
 ## Contributing
 
@@ -133,6 +150,9 @@ Security problems: see [SECURITY.md](SECURITY.md).
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Acknowledgements
+
+Ideas and checks for the Investigate tools come from the open-source-intelligence community's long practice, including
+[Bellingcat's Online Investigations Toolkit](https://bellingcat.gitbook.io/toolkit) and the [InVID-WeVerify](https://www.invid-project.eu/tools-and-services/invid-verification-plugin/) verification plugin. PageMate is not affiliated with them or with any service it links to.
 
 Voices by [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) and [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI);
 MP4 re-wrapping by [Mediabunny](https://mediabunny.dev).

@@ -1303,7 +1303,8 @@
     const permissions = [], origins = [];
     if (!(await chrome.permissions.contains({ permissions: ['pageCapture'] }).catch(() => false))) permissions.push('pageCapture');
     if (stamp) { const o = new URL(stamp).origin + '/*'; if (!(await chrome.permissions.contains({ origins: [o] }).catch(() => false))) origins.push(o); }
-    if (shot && state.tab && /^https?:/i.test(state.tab.url || '')) { const o = new URL(state.tab.url).origin + '/*'; if (!(await chrome.permissions.contains({ origins: [o] }).catch(() => false))) origins.push(o); }
+    // a screenshot of a tab that is not the one the user just clicked on needs "all sites" in the form <all_urls>
+    if (shot && !(await chrome.permissions.contains({ origins: ['<all_urls>'] }).catch(() => false))) origins.push('<all_urls>');
     if (!permissions.length && !origins.length) return true;
     return chrome.permissions.request({ ...(permissions.length ? { permissions } : {}), ...(origins.length ? { origins } : {}) });
   }

@@ -1,13 +1,16 @@
 {
   "name": "pagemate",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": true,
-  "description": "PageMate: a browser extension to read pages aloud, save them as PDF/Word/Markdown, download course media and keep study notes.",
+  "description": "PageMate: a browser extension to read pages aloud, save them as PDF/Word/Markdown, download course media, keep study notes, and investigate, screenshot and seal evidence.",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/boxkutter/page-mate.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/boxkutter/page-mate.git"
+  },
   "scripts": {
-    "test:unit": "node tests/run-notes-core.js && node tests/run-notes-extra.js && node tests/run-evidence.js && node tests/run-hls.js && node tests/run-mux.js && node tests/run-writers.js",
-    "test:browser": "node tests/run-extract.js && node tests/run-shipped.js && node tests/run-notes.js && node tests/run-notes2.js && node tests/run-extension.js",
+    "test:unit": "node tests/run-notes-core.js && node tests/run-notes-extra.js && node tests/run-evidence.js && node tests/run-hls.js && node tests/run-mux.js && node tests/run-writers.js && node tests/run-osint-core.js && node tests/run-meta.js && node tests/run-trust.js && node tests/run-seal.js && node tests/run-shot-core.js",
+    "test:browser": "node tests/run-extract.js && node tests/run-shipped.js && node tests/run-notes.js && node tests/run-notes2.js && node tests/run-extension.js && node tests/run-investigate.js",
     "test": "npm run test:unit && npm run test:browser",
     "package": "bash scripts/package.sh"
   },

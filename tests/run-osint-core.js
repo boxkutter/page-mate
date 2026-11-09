@@ -7,6 +7,7 @@ const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 // ---- defang / refang
 check('refang handles hxxp, [.] , (dot), [at]', K.refang('hxxps://evil[.]example(dot)com/a and bob[at]example[.]org') === 'https://evil.example.com/a and bob@example.org');
 check('defang makes URLs, bare domains, IPs and emails inert', K.defang('see https://evil.example.com/a.b?x=1.2 and 10.1.2.3 or bob@example.org') === 'see hxxps://evil[.]example[.]com/a.b?x=1.2 and 10[.]1[.]2[.]3 or bob[@]example[.]org', K.defang('see https://evil.example.com/a.b?x=1.2 and 10.1.2.3 or bob@example.org'));
+check('defang is idempotent', K.defang(K.defang('http://a.example.com/p and bob@example.org 1.2.3.4')) === K.defang('http://a.example.com/p and bob@example.org 1.2.3.4'));
 check('refang(defang(x)) round-trips a URL', K.refang(K.defang('http://a.example.com/p')) === 'http://a.example.com/p');
 
 // ---- detect
@@ -39,7 +40,9 @@ check('extract: urls (refanged) and no trailing dot', vals('url').includes('http
 check('extract: domains from urls and bare text, but not file names', vals('domain').includes('www.example.com') && vals('domain').includes('bad.example.net') && vals('domain').includes('news.bbc.co.uk') && vals('domain').includes('example.org') && !vals('domain').some(d => /^(index\.js|readme\.md)$/.test(d)), JSON.stringify(vals('domain')));
 check('extract: ips', eq(vals('ipv4'), ['203.0.113.7']) && vals('ipv6').includes('2001:db8::7334'));
 check('extract: hashes, cve counted twice, wallets, ids, asn, coordinates', vals('md5').length === 1 && vals('sha256').length === 1 && ent.cve[0].count === 2 && vals('btc').length === 1 && vals('eth').length === 1 && vals('analyticsId').includes('UA-1234567-1') && vals('asn').includes('AS64500') && vals('latlon').includes('48.8584,2.2945'), JSON.stringify([vals('btc'), vals('asn'), vals('latlon')]));
+check('extract: an analytics id inside a URL is found', K.extract('<script src="https://www.googletagmanager.com/gtag/js?id=G-ABCDE12345"></script>').analyticsId[0].value === 'G-ABCDE12345');
 check('extract: CSV and Markdown exports', /^type,value,count,found_in,page_url,page_title\n/.test(K.entitiesCsv(ent, { url: 'https://p.example/', title: 'T "q"' })) && K.entitiesMarkdown(ent, { url: 'https://p.example/' }).includes('## Email addresses (2)'));
+check('extract: defanged CSV / Markdown exports defang links, domains, IPs and emails but not hashes', (() => { const c = K.entitiesCsv(ent, {}, { defang: true }); const m = K.entitiesMarkdown(ent, {}, { defang: true }); return c.includes('hxxps://www[.]example[.]com') && c.includes('203[.]0[.]113[.]7') && c.includes('jane.doe[@]example[.]org') && !c.includes('http://') && m.includes('hxxp://bad[.]example[.]net/login') && c.includes('5d41402abc4b2a76b9719d911017c592'); })());
 check('extract: huge input stays bounded', Object.values(K.extract('a@b.co '.repeat(5000) + 'x'.repeat(10), { max: 50 })).every(l => l.length <= 50));
 
 // ---- pivots

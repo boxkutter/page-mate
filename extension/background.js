@@ -229,7 +229,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     case 'kn-action-manager': openNotesManager(); return;
     case 'ko-lookup': openInvestigate(tab, { view: 'lookup', q: info.selectionText || '' }); return;
     case 'ko-lookup-link': openInvestigate(tab, { view: 'lookup', q: info.linkUrl || '' }); return;
-    case 'ko-img-meta': openInvestigate(tab, { view: 'media', img: /^https?:/i.test(info.srcUrl || '') ? info.srcUrl : '' }); return;
+    case 'ko-img-meta': { const web = /^https?:/i.test(info.srcUrl || ''); openInvestigate(tab, { view: 'media', img: web ? info.srcUrl : '', embedded: !web }); return; }
     case 'ko-investigate': case 'ko-action-investigate': openInvestigate(tab, { view: 'entities' }); return;
     case 'ko-share': case 'ko-action-share': openInvestigate(tab, { view: 'share', quote: info.selectionText || '' }); return;
     case 'ko-shot:region': case 'ko-action-shot-region': startShot(tab, 'region'); return;
@@ -254,7 +254,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     for (const eid of ids) {
       const u = KOsint.reverseImageUrl(eid, src);
       if (u) chrome.tabs.create({ url: u, index: tab.index + 1, active: ids.length === 1 });
-      else { openInvestigate(tab, { view: 'media', img: '' }); break; }   // data:/blob: images: the page explains the options
+      else { openInvestigate(tab, { view: 'media', embedded: true }); break; }   // data:/blob: images: the page explains the options
     }
     return;
   }
@@ -559,11 +559,12 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 
 const INV_TABS_KEY = 'koInvTabs';
 
-async function openInvestigate(tab, { view = 'entities', q, img, quote } = {}) {
+async function openInvestigate(tab, { view = 'entities', q, img, quote, embedded } = {}) {
   if (!tab || tab.id == null) return;
   const p = new URLSearchParams({ tab: String(tab.id), view });
   if (q) p.set('q', String(q).slice(0, 2000));
   if (img) p.set('img', img);
+  if (embedded) p.set('embedded', '1');
   if (quote) p.set('quote', String(quote).slice(0, 4000));
   const url = chrome.runtime.getURL('investigate.html?' + p);
   const stored = await chrome.storage.session.get(INV_TABS_KEY).catch(() => ({}));

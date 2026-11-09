@@ -75,7 +75,7 @@
     else { cv.style.width = Math.round(w * Number(z) / (st.shot.dpr > 1.2 ? st.shot.dpr : 1)) + 'px'; cv.style.height = Math.round(h * Number(z) / (st.shot.dpr > 1.2 ? st.shot.dpr : 1)) + 'px'; }
   }
   $('zoom').addEventListener('change', render);
-  window.addEventListener('resize', () => { if ($('zoom').value === 'fit') applyZoom(); });
+  window.addEventListener('resize', () => { if (st.bmp && $('zoom').value === 'fit') applyZoom(); });
 
   // ---------- pointer handling ----------
   function pt(e) {

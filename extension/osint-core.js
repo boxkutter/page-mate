@@ -22,14 +22,17 @@
       .replace(/\[\s*(?:@|at)\s*\]|\(\s*(?:@|at)\s*\)/gi, '@');
   }
 
-  // Makes an indicator harmless to click: hxxps://evil[.]example[.]com/a
+  // dots that aren't already defanged
+  const dotify = h => h.replace(/(?<!\[)\.(?!\])/g, '[.]');
+
+  // Makes an indicator harmless to click: hxxps://evil[.]example[.]com/a  (safe to run twice)
   function defang(s) {
     let out = String(s == null ? '' : s);
     out = out.replace(/\bhttp(s?):\/\//gi, 'hxxp$1://').replace(/\bftp:\/\//gi, 'fxp://');
     // dots inside hosts only (leave the path and query alone)
-    out = out.replace(/((?:hxxps?|fxp):\/\/)([^\s/?#]+)/gi, (_, scheme, host) => scheme + host.replace(/\./g, '[.]'));
-    out = out.replace(/([A-Za-z0-9._%+'-]+)@((?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,})/g, (_, local, host) => local + '[@]' + host.replace(/\./g, '[.]'));
-    out = out.replace(/(^|[\s(<"'])((?:[a-z0-9-]+\.)+[a-z]{2,})(?=$|[\s)>"'/?#,;:])/gi, (m, pre, host) => /\[\.\]/.test(host) ? m : pre + host.replace(/\./g, '[.]'));
+    out = out.replace(/((?:hxxps?|fxp):\/\/)([^\s/?#]+)/gi, (_, scheme, host) => scheme + dotify(host));
+    out = out.replace(/([A-Za-z0-9._%+'-]+)@((?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,})/g, (_, local, host) => local + (/\[@\]/.test(local) ? '' : '[@]') + dotify(host));
+    out = out.replace(/(^|[\s(<"'])((?:[a-z0-9-]+\.)+[a-z]{2,})(?=$|[\s)>"'/?#,;:])/gi, (m, pre, host) => /\[\.\]/.test(host) ? m : pre + dotify(host));
     out = out.replace(/\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b/g, '$1[.]$2[.]$3[.]$4');
     return out;
   }
@@ -169,6 +172,10 @@
       }
     }
 
+    // ids can sit inside a URL (…/gtag/js?id=G-XXXX), so look before the URLs are blanked out
+    for (const m of t.matchAll(/\b(?:UA-\d{4,10}-\d{1,4}|GTM-[A-Z0-9]{4,8}|ca-pub-\d{10,16})\b/g)) add('analyticsId', m[0], 'text');
+    for (const m of t.matchAll(/\bG-[A-Z0-9]{10}\b/g)) if (/\d/.test(m[0])) add('analyticsId', m[0], 'text');
+
     // URLs first, then blank them out so their pieces aren't reported twice as emails/domains.
     t = t.replace(/\b(?:https?|ftp):\/\/[^\s<>"'`\\^{}|]+/gi, m => {
       const clean = m.replace(/[)\].,;:!?'"]+$/, '');
@@ -188,8 +195,6 @@
     for (const m of t.matchAll(/\bCVE-\d{4}-\d{4,7}\b/gi)) add('cve', m[0].toUpperCase(), 'text');
     for (const m of t.matchAll(/\b0x[a-fA-F0-9]{40}\b/g)) add('eth', m[0], 'text');
     for (const m of t.matchAll(/(?<![\w])(?:bc1[ac-hj-np-z02-9]{11,71}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})(?![\w])/g)) if (RE.btc.test(m[0]) && /\d/.test(m[0]) && /[a-zA-Z]/.test(m[0])) add('btc', m[0], 'text');
-    for (const m of t.matchAll(/\b(?:UA-\d{4,10}-\d{1,4}|GTM-[A-Z0-9]{4,8}|ca-pub-\d{10,16})\b/g)) add('analyticsId', m[0], 'text');
-    for (const m of t.matchAll(/\bG-[A-Z0-9]{10}\b/g)) if (/\d/.test(m[0])) add('analyticsId', m[0], 'text');
     for (const m of t.matchAll(/\bAS\d{2,10}\b/g)) add('asn', m[0], 'text');
     // phones: international (+...) anywhere, or national with separators
     for (const m of t.matchAll(/(?<![\w.+-])(\+\d[\d\s().-]{6,18}\d|\(?\d{2,4}\)?[\s.-]\d{3,4}[\s.-]\d{3,4}(?:[\s.-]\d{1,4})?)(?![\w-])/g)) {
@@ -224,13 +229,15 @@
     return rows;
   }
   const csvCell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  function entitiesCsv(entities, page) {
+  function entitiesCsv(entities, page, opts) {
+    const fix = v => (opts && opts.defang && /^(?:url|domain|ipv4|ipv6|email)$/.test(v.type) ? defang(v.value) : v.value);
     const head = ['type', 'value', 'count', 'found_in', 'page_url', 'page_title'];
     const p = page || {};
-    return head.join(',') + '\n' + entityRows(entities).map(r => [r.type, r.value, r.count, r.sources, p.url || '', p.title || ''].map(csvCell).join(',')).join('\n') + '\n';
+    return head.join(',') + '\n' + entityRows(entities).map(r => [r.type, fix(r), r.count, r.sources, p.url || '', p.title || ''].map(csvCell).join(',')).join('\n') + '\n';
   }
-  function entitiesMarkdown(entities, page) {
+  function entitiesMarkdown(entities, page, opts) {
     const p = page || {};
+    const fix = (type, v) => (opts && opts.defang && /^(?:url|domain|ipv4|ipv6|email)$/.test(type) ? defang(v) : v);
     const L = ['# Entities found on a page', ''];
     if (p.url) L.push('- **Page:** ' + (p.title ? p.title + ' — ' : '') + p.url);
     if (p.at) L.push('- **Extracted (UTC):** ' + p.at);
@@ -239,7 +246,7 @@
       const list = entities[type];
       if (!list || !list.length) continue;
       L.push('## ' + TYPE_LABEL[type] + ' (' + list.length + ')', '');
-      for (const e of list) L.push('- `' + e.value.replace(/`/g, "'") + '`' + (e.count > 1 ? ' ×' + e.count : ''));
+      for (const e of list) L.push('- `' + fix(type, e.value).replace(/`/g, "'") + '`' + (e.count > 1 ? ' ×' + e.count : ''));
       L.push('');
     }
     return L.join('\n');

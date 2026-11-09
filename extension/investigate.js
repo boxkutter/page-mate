@@ -118,7 +118,7 @@
   function entityText() {
     const f = $('enFilter').value.trim().toLowerCase();
     const lines = [];
-    for (const type of K.TYPE_ORDER) for (const e of (state.entities || {})[type] || []) if ((!state.entityType || state.entityType === type) && (!f || e.value.toLowerCase().includes(f))) lines.push(e.value);
+    for (const type of K.TYPE_ORDER) for (const e of (state.entities || {})[type] || []) if ((!state.entityType || state.entityType === type) && (!f || e.value.toLowerCase().includes(f))) lines.push($('enDefang').checked ? K.defang(e.value) : e.value);
     return lines.join('\n');
   }
 
@@ -129,7 +129,7 @@
     const f = $('enFilter').value.trim().toLowerCase();
     chips.append(h('button', { class: 'chip', 'aria-pressed': String(!state.entityType), text: 'All', on: { click: () => { state.entityType = ''; renderEntities(); } } }));
     for (const type of K.TYPE_ORDER) if (ent[type]) chips.append(h('button', { class: 'chip', 'aria-pressed': String(state.entityType === type), text: K.TYPE_LABEL[type] + ' ' + ent[type].length, on: { click: () => { state.entityType = type; renderEntities(); } } }));
-    const defangShown = false;
+    const defangShown = $('enDefang').checked;
     for (const type of K.TYPE_ORDER) {
       if (!ent[type] || (state.entityType && state.entityType !== type)) continue;
       const rows = ent[type].filter(e => !f || e.value.toLowerCase().includes(f));
@@ -139,7 +139,7 @@
         const c = h('code', { text: defangShown ? K.defang(e.value) : e.value });
         const row = h('div', { class: 'ent' }, c, h('span', { class: 'n', text: (e.count > 1 ? '×' + e.count + ' ' : '') + (e.sources.includes('link') || e.sources.includes('mailto') || e.sources.includes('tel') ? 'in links' : '') }),
           h('button', { class: 'ghost small', text: 'Look up', on: { click: () => gotoLookup(e.value) } }),
-          h('button', { class: 'ghost small', text: 'Copy', on: { click: ev => copy(e.value, ev.target) } }));
+          h('button', { class: 'ghost small', text: 'Copy', on: { click: ev => copy(defangShown ? K.defang(e.value) : e.value, ev.target) } }));
         card.append(row);
       }
       if (rows.length > 300) card.append(h('p', { class: 'hint', text: rows.length - 300 + ' more not shown; use the filter or save the CSV for the full list.' }));
@@ -148,10 +148,11 @@
   }
   $('enScan').addEventListener('click', scanEntities);
   $('enFilter').addEventListener('input', renderEntities);
+  $('enDefang').addEventListener('change', renderEntities);
   $('enCopy').addEventListener('click', e => copy(entityText(), e.target));
   const entPage = () => ({ url: state.page && state.page.url, title: state.page && state.page.title, at: new Date().toISOString() });
-  $('enCsv').addEventListener('click', () => { if (state.entities) saveText('Entities - ' + stamp() + '.csv', K.entitiesCsv(state.entities, entPage()), 'text/csv'); });
-  $('enMd').addEventListener('click', () => { if (state.entities) saveText('Entities - ' + stamp() + '.md', K.entitiesMarkdown(state.entities, entPage()), 'text/markdown'); });
+  $('enCsv').addEventListener('click', () => { if (state.entities) saveText('Entities - ' + stamp() + '.csv', K.entitiesCsv(state.entities, entPage(), { defang: $('enDefang').checked }), 'text/csv'); });
+  $('enMd').addEventListener('click', () => { if (state.entities) saveText('Entities - ' + stamp() + '.md', K.entitiesMarkdown(state.entities, entPage(), { defang: $('enDefang').checked }), 'text/markdown'); });
 
   // ---------- MEDIA ----------
   let loaded = null;   // { bytes, name, url, type, objectUrl }
@@ -301,7 +302,7 @@
     try {
       const page = await getPage();
       const imgs = [], seen = new Set();
-      for (const im of page.images) { if (!seen.has(im.src) && /^https?:|^data:image/i.test(im.src) && (im.w * im.h >= 6400 || !im.w)) { seen.add(im.src); imgs.push(im); } }
+      for (const im of page.images) { if (!seen.has(im.src) && /^https?:|^data:image/i.test(im.src) && (im.w * im.h >= 2000 || !im.w)) { seen.add(im.src); imgs.push(im); } }
       status($('mdPageStatus'), imgs.length ? imgs.length + ' images' + (imgs.length > 60 ? ' (first 60 shown)' : '') + '. Tiny icons are left out.' : 'No images found on this page.');
       for (const im of imgs.slice(0, 60)) {
         const web = /^https?:/i.test(im.src);
@@ -580,7 +581,7 @@
     if (inited[v]) return;
     inited[v] = true;
     if (v === 'entities') scanEntities();
-    else if (v === 'media') { renderMediaPage(); const img = params.get('img'); if (img) { params.delete('img'); loadUrl(img); } else if (params.has('img')) { params.delete('img'); status($('mdStatus'), 'That picture is embedded in the page rather than a web address, so it can’t be sent to a search engine by link. Save it, then drop it here, or use the copy-and-paste search below it.'); } }
+    else if (v === 'media') { renderMediaPage(); const img = params.get('img'); if (img) { params.delete('img'); loadUrl(img); } else if (params.get('embedded')) { params.delete('embedded'); status($('mdStatus'), 'That picture is embedded in the page rather than a web address, so it can’t be sent to a search engine by link. Save it, then drop it here, or use the copy-and-paste search below it.'); } }
     else if (v === 'archive') { if (!$('arUrl').value) $('arUrl').value = (state.tab && state.tab.url) || ''; renderArchive(); }
     else if (v === 'search') { renderPresets(); }
     else if (v === 'share') initShare();
