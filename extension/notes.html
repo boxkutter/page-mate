@@ -51,6 +51,13 @@
   .item .n { margin: 4px 0 0; color: var(--muted); font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .item .m { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
   .item .m a { color: var(--accent); }
+  .shots { margin: 10px 0 0 28px; display: none; }
+  .page.open .shots { display: block; }
+  .shot { display: flex; gap: 12px; align-items: flex-start; border-left: 4px solid var(--accent); padding: 4px 0 4px 10px; margin-bottom: 10px; }
+  .shot img.thumb { width: 150px; max-height: 110px; object-fit: cover; object-position: top; border: 1px solid var(--line); border-radius: 6px; cursor: zoom-in; background: var(--card); flex: none; }
+  .shot .n { margin: 0 0 3px; overflow-wrap: anywhere; }
+  .shot .m { font-size: 12.5px; color: var(--muted); }
+  .shot .acts { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
   .item.orphan .q { opacity: .65; }
   .c-yellow { --c: var(--yellow); } .c-green { --c: var(--green); } .c-blue { --c: var(--blue); } .c-pink { --c: var(--pink); }
   mark { background: rgba(255, 214, 0, .45); color: inherit; border-radius: 2px; }
@@ -122,6 +129,7 @@
 <script src="render.js"></script>
 <script src="evidence.js"></script>
 <script src="notes-core.js"></script>
+<script src="shot-notes.js"></script>
 <script src="notes-manager.js"></script>
 </body>
 </html>

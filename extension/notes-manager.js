@@ -49,6 +49,7 @@
     if (filter.case !== '' && (page.case || '') !== (filter.case === '\u0000none' ? '' : filter.case)) return false;
     if (!q) return true;
     if ((page.title + ' ' + page.url + ' ' + (page.note || '')).toLowerCase().includes(q)) return true;
+    if ((page.shots || []).some(s => (s.note || '').toLowerCase().includes(q))) return true;
     return page.items.some(i => itemText(i).includes(q));
   }
 
@@ -70,6 +71,7 @@
   }
 
   function render() {
+    for (const u of thumbUrls.splice(0)) URL.revokeObjectURL(u);
     const shown = pages.filter(matches);
     // tag chips across everything
     const tags = [...new Set(pages.flatMap(p => p.items.flatMap(i => i.tags || [])))].sort();
@@ -114,7 +116,7 @@
     const link = h('a', { href: p.url, target: '_blank', rel: 'noreferrer noopener' }, marked(p.title || p.url));
     const when = p.updated ? new Date(p.updated).toLocaleString() : '';
     card.append(h('div', { class: 'phead' }, cb,
-      h('div', { class: 'ptitle' }, link, h('div', { class: 'pmeta' }, p.case ? h('span', { class: 'case', text: p.case }) : null, hostOf(p.url) + ' · ' + p.items.length + ' highlight' + (p.items.length === 1 ? '' : 's') + (when ? ' · ' + when : ''))),
+      h('div', { class: 'ptitle' }, link, h('div', { class: 'pmeta' }, p.case ? h('span', { class: 'case', text: p.case }) : null, hostOf(p.url) + ' · ' + p.items.length + ' highlight' + (p.items.length === 1 ? '' : 's') + ((p.shots || []).length ? ' · ' + p.shots.length + ' screenshot' + (p.shots.length === 1 ? '' : 's') : '') + (when ? ' · ' + when : ''))),
       h('button', { class: 'ghost small', text: open ? 'Hide' : 'Show', onclick: () => { opened.has(p.key) ? opened.delete(p.key) : opened.add(p.key); render(); } }),
       h('button', { class: 'ghost small', text: 'Export', onclick: () => exportPages([p]) }),
       h('button', { class: 'ghost small', text: 'Delete', onclick: () => deletePage(p) })));
@@ -134,7 +136,42 @@
         it.note ? h('p', { class: 'n' }, marked(it.note)) : null, meta));
     }
     card.append(items);
+    const shots = (p.shots || []).filter(s => !filter.q || (s.note || '').toLowerCase().includes(filter.q) || (p.title + ' ' + p.url).toLowerCase().includes(filter.q));
+    if (shots.length) card.append(h('div', { class: 'shots' }, ...shots.map(s => shotRow(p, s))));
     return card;
+  }
+
+  // ---------- screenshots filed with a page ----------
+
+  const thumbUrls = [];
+  const MODES = { region: 'Selected area', visible: 'Visible part', full: 'Whole page' };
+
+  function shotRow(p, s) {
+    const img = h('img', { class: 'thumb', alt: 'Screenshot of ' + (p.title || p.url) });
+    const acts = h('div', { class: 'acts' });
+    const row = h('div', { class: 'shot', 'data-shot': s.id }, img, h('div', null,
+      s.note ? h('p', { class: 'n' }, marked(s.note)) : null,
+      h('div', { class: 'm', text: 'Screenshot · ' + (MODES[s.mode] || 'Picture') + (s.w ? ' · ' + s.w + '×' + s.h : '') + (s.marked ? ' · with your marks' : '') + (s.at ? ' · ' + new Date(s.at).toLocaleString() : '') }),
+      acts));
+    KShotNotes.getImage(s.id).then(blob => {
+      if (!blob) { img.remove(); acts.before(h('p', { class: 'pmeta', text: 'The picture is no longer in this browser.' })); acts.append(h('button', { class: 'ghost small', text: 'Remove entry', onclick: () => removeShot(p, s) })); return; }
+      const url = URL.createObjectURL(blob); thumbUrls.push(url);
+      img.src = url;
+      const open = () => window.open(url, '_blank', 'noopener');
+      img.addEventListener('click', open);
+      acts.append(
+        h('button', { class: 'ghost small', text: 'Open', onclick: open }),
+        h('button', { class: 'ghost small', text: 'Copy', onclick: async () => { try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); status('Copied. Paste it with Ctrl+V.', 'ok'); } catch (e) { status('Couldn’t copy (' + (e.message || e) + ').', 'err'); } } }),
+        h('button', { class: 'ghost small', text: 'Save', onclick: () => { const a = h('a', { href: url, download: 'Screenshot - ' + M.sanitizeName(p.title || hostOf(p.url) || 'page', 'page', 60) + ' - ' + (s.at || '').slice(0, 10) + '.png' }); document.body.append(a); a.click(); a.remove(); } }),
+        h('button', { class: 'ghost small', text: 'Delete', onclick: () => removeShot(p, s) }));
+    }).catch(() => img.remove());
+    return row;
+  }
+
+  async function removeShot(p, s) {
+    if (!confirm('Remove this screenshot from your notes? This can’t be undone.')) return;
+    await KShotNotes.remove(p.key, s.id);
+    status('Screenshot removed.', 'ok');
   }
 
   function updateButtons() {
@@ -226,7 +263,9 @@
   }
 
   async function deletePage(p) {
-    if (!confirm('Delete all ' + p.items.length + ' highlight(s) and notes for “' + (p.title || p.url) + '”? This can’t be undone (a backup first is a good idea).')) return;
+    const nShots = (p.shots || []).length;
+    if (!confirm('Delete all ' + p.items.length + ' highlight(s)' + (nShots ? ', ' + nShots + ' screenshot(s)' : '') + ' and notes for “' + (p.title || p.url) + '”? This can’t be undone (a backup first is a good idea).')) return;
+    await KShotNotes.removeImagesOf(p);
     const idx = (await chrome.storage.local.get('kn:idx'))['kn:idx'] || {};
     delete idx[p.key];
     await chrome.storage.local.remove(p.key);
@@ -237,9 +276,9 @@
   // ---------- backup / restore ----------
 
   async function backup() {
-    const data = { format: 'kokoro-notes', version: 1, exported: new Date().toISOString(), pages: pages.map(({ key, ...p }) => p) };
+    const data = { format: 'kokoro-notes', version: 1, exported: new Date().toISOString(), pages: pages.map(({ key, shots, ...p }) => p) };   // screenshots stay in this browser: the backup is text only
     await save(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }), 'PageMate notes backup ' + data.exported.slice(0, 10) + '.json');
-    status('Backup saved (' + pages.length + ' pages).', 'ok');
+    status('Backup saved (' + pages.length + ' pages)' + (pages.some(p => (p.shots || []).length) ? '. Screenshots are not in it: they stay in this browser.' : '.'), 'ok');
   }
 
   const str = (v, max) => (typeof v === 'string' ? v : '').slice(0, max);
@@ -315,6 +354,11 @@
     try { canDownload = await chrome.permissions.contains({ permissions: ['downloads'] }); } catch (_) {}
     await refresh();
     // Opened from the sidebar ("Word / PDF…"): preselect that page.
+    const shotsAt = /#shots=(.+)$/.exec(location.hash);
+    if (shotsAt) {
+      const key = decodeURIComponent(shotsAt[1]);
+      if (pages.some(p => p.key === key)) { opened.add(key); render(); }
+    }
     const focus = /#focus=(.+)$/.exec(location.hash);
     if (focus) {
       const key = decodeURIComponent(focus[1]);

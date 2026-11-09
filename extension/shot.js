@@ -5,7 +5,12 @@
   const params = new URLSearchParams(location.search);
   const id = params.get('id');
   const cv = $('cv'), ctx = cv.getContext('2d');
-  const st = { shot: null, bmp: null, ops: [], tool: 'none', crop: null, drag: null, sha: '', original: null };
+  const st = { shot: null, bmp: null, ops: [], tool: 'none', crop: null, drag: null, sha: '', original: null, savedSig: '[[],null]' };
+  // "Unsaved edits": marks or a crop that have not been saved, copied, shared, filed or sealed since they last changed.
+  const editSig = () => JSON.stringify([st.ops, st.crop]);
+  const hasUnsavedEdits = () => (st.ops.length > 0 || !!st.crop) && editSig() !== st.savedSig;
+  const markKept = () => { st.savedSig = editSig(); };
+  window.addEventListener('beforeunload', e => { if (hasUnsavedEdits()) { e.preventDefault(); e.returnValue = ''; } });
 
   const setStatus = (el, t, k) => { el.textContent = t || ''; el.className = 'status' + (k ? ' ' + k : ''); };
   const stamp = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
@@ -144,9 +149,39 @@
   }
   async function copyBlob(blob) { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); }
 
-  $('savePng').addEventListener('click', async () => { download(await flatten('image/png'), baseName() + '.png'); setStatus($('status'), 'Saved to your Downloads folder.', 'ok'); });
-  $('saveJpg').addEventListener('click', async () => { download(await flatten('image/jpeg', 0.92), baseName() + '.jpg'); setStatus($('status'), 'Saved to your Downloads folder.', 'ok'); });
-  $('copyImg').addEventListener('click', async () => { try { await copyBlob(await flatten('image/png')); setStatus($('status'), 'Copied. Paste it anywhere with Ctrl+V.', 'ok'); } catch (e) { setStatus($('status'), 'Couldn’t copy (' + (e.message || e) + '). Save it instead.', 'err'); } });
+  $('savePng').addEventListener('click', async () => { download(await flatten('image/png'), baseName() + '.png'); markKept(); setStatus($('status'), 'Saved to your Downloads folder.', 'ok'); });
+  $('saveJpg').addEventListener('click', async () => { download(await flatten('image/jpeg', 0.92), baseName() + '.jpg'); markKept(); setStatus($('status'), 'Saved to your Downloads folder.', 'ok'); });
+  $('copyImg').addEventListener('click', async () => { try { await copyBlob(await flatten('image/png')); markKept(); setStatus($('status'), 'Copied. Paste it anywhere with Ctrl+V.', 'ok'); } catch (e) { setStatus($('status'), 'Couldn’t copy (' + (e.message || e) + '). Save it instead.', 'err'); } });
+
+  // ---------- keep with my notes ----------
+  $('toNotes').addEventListener('click', async () => {
+    const out = $('notesStatus');
+    $('toNotes').disabled = true;
+    try {
+      const marked = st.ops.length > 0 || !!st.crop;
+      const blob = await flatten('image/png');
+      const r = await KShotNotes.add(blob, { url: st.shot.url, title: st.shot.title, capturedAt: st.shot.capturedAt, mode: st.shot.mode, width: outSize().w, height: outSize().h, sha256: hex(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())), marked, note: $('shotCaption').value.trim() });
+      markKept();
+      $('shotCaption').value = '';
+      out.className = 'status ok';
+      out.replaceChildren('Filed with your notes for this page (' + r.count + ' screenshot' + (r.count === 1 ? '' : 's') + ' there). ', el('a', { href: chrome.runtime.getURL('notes.html#shots=' + encodeURIComponent(r.key)), target: '_blank', textContent: 'Open my notes' }));
+    } catch (e) { setStatus(out, 'Couldn’t file it: ' + (e && e.message || e), 'err'); }
+    finally { $('toNotes').disabled = false; }
+  });
+
+  // ---------- copy automatically ----------
+  $('autoCopy').addEventListener('change', async () => {
+    $('autoCopy').checked = await krSetShotAutoCopy($('autoCopy').checked);
+    setStatus($('status'), $('autoCopy').checked ? 'From now on each new screenshot is copied as soon as it is taken.' : 'Screenshots are no longer copied automatically.', $('autoCopy').checked ? 'ok' : '');
+  });
+  async function autoCopyIfWanted() {
+    const s = await chrome.storage.sync.get({ shotAutoCopy: false });
+    const have = await chrome.permissions.contains({ permissions: ['clipboardWrite'] }).catch(() => false);
+    $('autoCopy').checked = !!s.shotAutoCopy && have;
+    if (!$('autoCopy').checked) return;
+    try { await copyBlob(st.original); markKept(); setStatus($('status'), 'Copied to your clipboard. Paste it anywhere with Ctrl+V.', 'ok'); }
+    catch (e) { setStatus($('status'), 'Couldn’t copy it automatically (' + (e && e.message || e) + '). Use Copy image.', 'err'); }
+  }
 
   // ---------- share ----------
   function renderSocial() {
@@ -162,7 +197,7 @@
         const a = el('a', { className: 'pill', textContent: l.name, href: l.href, target: '_blank', rel: 'noopener noreferrer' });
         a.addEventListener('click', async e => {
           e.preventDefault();
-          try { await copyBlob(await flatten('image/png')); setStatus($('status'), 'Image copied: paste it into the post.', 'ok'); } catch (_) { setStatus($('status'), 'Couldn’t copy the image; save it and attach it yourself.', 'err'); }
+          try { await copyBlob(await flatten('image/png')); markKept(); setStatus($('status'), 'Image copied: paste it into the post.', 'ok'); } catch (_) { setStatus($('status'), 'Couldn’t copy the image; save it and attach it yourself.', 'err'); }
           window.open(l.href, '_blank', 'noopener');
         });
         box.append(a);
@@ -174,7 +209,7 @@
     }
   }
   $('nativeShare').addEventListener('click', async () => {
-    try { const blob = await flatten('image/png'); await navigator.share({ files: [new File([blob], baseName() + '.png', { type: 'image/png' })], title: st.shot.title, url: st.shot.url }); } catch (e) { if (e && e.name !== 'AbortError') setStatus($('status'), 'Couldn’t share: ' + (e.message || e), 'err'); }
+    try { const blob = await flatten('image/png'); await navigator.share({ files: [new File([blob], baseName() + '.png', { type: 'image/png' })], title: st.shot.title, url: st.shot.url }); markKept(); } catch (e) { if (e && e.name !== 'AbortError') setStatus($('status'), 'Couldn’t share: ' + (e.message || e), 'err'); }
   });
 
   // ---------- seal as evidence ----------
@@ -225,6 +260,7 @@
       const base = KOShot.fileBase(st.shot.title, when, 'Evidence screenshot');
       const zip = await KNSeal.zipEntries(base, res.entries, when);
       download(zip, base + '.zip');
+      markKept();
       const log = (await chrome.storage.local.get('kn:seals'))['kn:seals'] || [];
       log.push(KNEvidence.logRow(info, res.manifestHash, base + '.zip'));
       await chrome.storage.local.set({ 'kn:seals': log.slice(-500) });
@@ -237,7 +273,7 @@
   async function init() {
     if (!id) { $('source').textContent = 'No screenshot to show.'; return; }
     const rec = await KOShotStore.get(id).catch(() => null);
-    if (!rec || !rec.blob) { $('source').textContent = 'This screenshot is no longer available (screenshots are kept for a day, or until you close this tab’s data).'; return; }
+    if (!rec || !rec.blob) { $('source').textContent = 'This screenshot is no longer available. A screenshot is removed from the browser when its tab is closed (and anything left over after a day). Save it, copy it or file it with your notes before closing.'; return; }
     st.shot = rec;
     st.original = rec.blob;
     st.bmp = await createImageBitmap(rec.blob);
@@ -250,6 +286,7 @@
     renderSocial();
     await initSeal();
     render();
+    await autoCopyIfWanted();
   }
   init().catch(e => { $('source').textContent = 'Couldn’t open the screenshot: ' + (e && e.message || e); });
 })();

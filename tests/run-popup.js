@@ -24,8 +24,11 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Toolbox Te
 
   // ---- what ships
   check('the icon opens the toolbox (default_popup = popup.html)', shipped.action.default_popup === 'popup.html');
-  check('Alt+Shift+R still reads aloud, as its own command (the icon no longer does)', !shipped.commands._execute_action && shipped.commands['read-page'] && shipped.commands['read-page'].suggested_key.default === 'Alt+Shift+R');
+  check('Alt+Shift+R still reads aloud, as its own command (the icon no longer does)', shipped.commands['read-page'] && shipped.commands['read-page'].suggested_key.default === 'Alt+Shift+R' && !(shipped.commands._execute_action && shipped.commands._execute_action.suggested_key));
+  check('the toolbox itself can be given a shortcut (_execute_action, no default key)', !!shipped.commands._execute_action && !shipped.commands._execute_action.suggested_key);
   check('still at most 4 default shortcuts', Object.values(shipped.commands).filter(c => c.suggested_key).length <= 4);
+  const TOOL_COMMANDS = ['read-page', 'toggle-notes', 'save-page', 'save-video', 'save-audio', 'save-images', 'screenshot-region', 'screenshot-visible', 'screenshot-full', 'record-screen', 'investigate', 'lookup', 'archive', 'share', 'all-notes'];
+  check('every tool has a shortcut slot', TOOL_COMMANDS.every(c => shipped.commands[c] && shipped.commands[c].description), TOOL_COMMANDS.filter(c => !shipped.commands[c]).join(','));
 
   const server = http.createServer((req, res) => { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(PAGE); });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
@@ -67,7 +70,10 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Toolbox Te
   const heads = await pop.$$eval('h2', h => h.map(x => x.textContent.trim()));
   check('tools are grouped under headings', ['Listen and notes', 'Save', 'Capture', 'Investigate'].every(h => heads.includes(h)), heads.join(' | '));
   check('the page being acted on is named', /Toolbox Test Page/.test(await pop.$eval('#page', e => e.textContent)) && await pop.$eval('#note', e => e.hidden));
-  check('footer shows the reading shortcut', /Alt\+Shift\+R/.test(await pop.$eval('#keys', e => e.textContent)) || (await pop.$eval('#keys', e => e.textContent)) === '', await pop.$eval('#keys', e => e.textContent));
+  const keysSeen = await pop.$$eval('#main button.tile', bs => bs.map(b => ({ k: b.dataset.key, badge: (b.querySelector('kbd') || {}).textContent })));
+  check('every tile shows its letter, and no two share one', keysSeen.length === 12 && keysSeen.every(x => x.k && x.badge === x.k.toUpperCase()) && new Set(keysSeen.map(x => x.k)).size === 12, keysSeen.map(x => x.badge).join(''));
+  const shotKeys = await pop.$$eval('#shotList button', bs => bs.map(b => b.dataset.key));
+  check('the screenshot choices have their own letters', shotKeys.length === 3 && new Set(shotKeys).size === 3, shotKeys.join(''));
   check('first tile has keyboard focus', await pop.evaluate(() => document.activeElement && document.activeElement.dataset.tile === 'read'));
 
   // ---- screenshot sub-menu
@@ -78,6 +84,83 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Toolbox Te
   await pop.click('[data-tile="shot"]'); await pop.click('#shotBack');
   check('Back goes back to the tools', await pop.$eval('#main', e => !e.hidden));
   await pop.close();
+
+  // ---- keyboard: arrows move, letters start, Ctrl+letter does nothing
+  {
+    const p = await openPopup(pageTabId);
+    const at = () => p.evaluate(() => document.activeElement && (document.activeElement.dataset.tile || document.activeElement.id));
+    check('starts with Read aloud focused', (await at()) === 'read');
+    await p.keyboard.press('ArrowRight'); check('→ moves to the next tile', (await at()) === 'notes');
+    await p.keyboard.press('ArrowDown'); check('↓ moves to the tile below', (await at()) === 'saveVideo', await at());
+    await p.keyboard.press('ArrowDown'); check('↓ again reaches the next group', (await at()) === 'record', await at());
+    await p.keyboard.press('ArrowUp'); await p.keyboard.press('ArrowLeft'); check('↑ and ← move back', (await at()) === 'savePage', await at());
+    await p.keyboard.down('Control'); await p.keyboard.press('v'); await p.keyboard.up('Control');
+    await sleep(500);
+    check('Ctrl+letter does not start a tool', !(await browser.pages()).some(x => /save\.html/.test(x.url())));
+    await p.keyboard.press('v');
+    const t = await findPage(/save\.html.*view=video/);
+    check('pressing V starts Video without touching the mouse', !!t, t && t.url().replace(X, ''));
+    if (t) await t.close().catch(() => {});
+    await p.close().catch(() => {});
+  }
+  {
+    const p = await openPopup(pageTabId);
+    await p.keyboard.press('c');
+    check('pressing C opens the screenshot choices', await p.$eval('#shotView', e => !e.hidden));
+    check('…and focuses the first choice', await p.evaluate(() => document.activeElement.dataset.tile) === 'shot-region');
+    await p.keyboard.press('v');
+    const t = await findPage(/shot\.html\?id=/);
+    check('C then V takes a visible-part screenshot', !!t);
+    if (t) await t.close().catch(() => {});
+    await p.close().catch(() => {});
+    const p2 = await openPopup(pageTabId);
+    await p2.keyboard.press('o');
+    const n = await findPage(/notes\.html/);
+    check('pressing O opens All my notes', !!n);
+    if (n) await n.close().catch(() => {});
+    await p2.close().catch(() => {});
+  }
+
+  // ---- the Shortcuts panel
+  {
+    const p = await openPopup(pageTabId);
+    await p.click('#shortcuts');
+    check('Shortcuts opens the list', await p.$eval('#keysView', e => !e.hidden) && await p.$eval('#main', e => e.hidden));
+    const rows = await p.$$eval('#keyTable tr[data-command]', trs => trs.map(tr => ({ cmd: tr.dataset.command, text: tr.textContent })));
+    check('it lists every tool and the toolbox itself', rows.length >= 18 && TOOL_COMMANDS.every(c => rows.some(r => r.cmd === c)) && rows.some(r => r.cmd === '_execute_action'), rows.length + ' rows');
+    check('every listed shortcut slot exists in the manifest', rows.every(r => shipped.commands[r.cmd] || r.cmd === 'toggle-pause'), rows.filter(r => !shipped.commands[r.cmd]).map(r => r.cmd).join(','));
+    check('each row says either what to press or “not set” / a dash', rows.every(r => /not set|\+/.test(r.text) || /—/.test(r.text)));
+    const readRow = rows.find(r => r.cmd === 'screenshot-full');
+    check('toolbox letters are shown (e.g. C then W for a whole-page screenshot)', readRow && /C/.test(readRow.text) && /W/.test(readRow.text), readRow && readRow.text);
+    await p.keyboard.press('Escape');
+    check('Esc goes back to the tools', await p.$eval('#main', e => !e.hidden));
+    await p.keyboard.press('?');
+    check('? opens the list from the keyboard', await p.$eval('#keysView', e => !e.hidden));
+    await p.click('#setKeys');
+    const sp = await findPage(/extensions\/shortcuts/);
+    check('“Set or change shortcuts…” opens the browser’s shortcuts page', !!sp, sp && sp.url());
+    if (sp) await sp.close().catch(() => {});
+    await p.close().catch(() => {});
+  }
+
+  // ---- every tool answers to its shortcut command (the browser's key press is replaced by calling the same handler)
+  {
+    const callBg = async (cmd, tabId) => {
+      const t = await browser.waitForTarget(x => x.type() === 'service_worker' && /background\.js/.test(x.url()), { timeout: 10000 });
+      const w = await t.worker();
+      return w.evaluate(async (c, id) => runCommand(c, await chrome.tabs.get(id)), cmd, tabId);
+    };
+    const cases = [['save-audio', /save\.html.*view=audio/], ['save-images', /save\.html.*view=image/], ['screenshot-full', /shot\.html\?id=/], ['screenshot-visible', /shot\.html\?id=/],
+      ['lookup', /investigate\.html.*view=lookup/], ['archive', /investigate\.html.*view=archive/], ['share', /investigate\.html.*view=share/], ['all-notes', /notes\.html/], ['investigate', /investigate\.html.*view=entities/], ['record-screen', /record\.html/], ['save-page', /save\.html.*view=document/]];
+    for (const [cmd, re] of cases) {
+      await callBg(cmd, pageTabId);
+      const t = await findPage(re);
+      check('shortcut command “' + cmd + '” starts its tool', !!t, t && t.url().replace(X, '').slice(0, 60));
+      if (t) await t.close().catch(() => {});
+    }
+    await callBg('not-a-command', pageTabId);
+    check('an unknown command does nothing', true);
+  }
 
   // ---- each tile starts its tool
   const press = async (sel, urlRe, name, extra) => {

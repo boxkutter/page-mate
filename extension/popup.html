@@ -27,7 +27,7 @@
   h2:first-of-type { margin-top: 0; }
   .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
   button.tile {
-    display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px; min-height: 64px;
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px; min-height: 64px;
     padding: 9px 3px 7px; font: inherit; font-size: 12px; font-weight: 600; text-align: center; line-height: 1.2;
     color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 11px; cursor: pointer;
   }
@@ -38,6 +38,10 @@
   button.tile:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
   button.tile:disabled { opacity: .42; cursor: default; }
   button.tile.wide { flex-direction: row; justify-content: flex-start; gap: 10px; padding: 10px 12px; min-height: 0; text-align: left; font-size: 13px; }
+  kbd { font: 600 10.5px/1.5 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; color: var(--muted); background: var(--bg); white-space: nowrap; }
+  button.tile > kbd { position: absolute; top: 4px; right: 5px; }
+  button.tile.wide > kbd { position: static; margin-left: auto; }
+  button.tile:disabled > kbd { opacity: .6; }
   .list { display: grid; gap: 6px; }
   .list small { display: block; font-weight: 400; color: var(--muted); font-size: 11.5px; }
   .back { font: inherit; font-weight: 600; font-size: 13px; background: none; border: 0; color: var(--accent); padding: 2px 4px; cursor: pointer; border-radius: 6px; }
@@ -45,7 +49,15 @@
   footer { display: flex; gap: 14px; align-items: center; margin: 12px 2px 0; padding-top: 9px; border-top: 1px solid var(--line); font-size: 12px; }
   footer button { font: inherit; font-size: 12px; background: none; border: 0; padding: 2px 0; color: var(--accent); cursor: pointer; font-weight: 600; }
   footer button:hover { text-decoration: underline; }
-  footer span { margin-left: auto; color: var(--muted); }
+  footer .end { margin-left: auto; }
+  .keytable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .keytable th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 0 6px 5px 0; position: sticky; top: 0; background: var(--bg); }
+  .keytable td { padding: 4px 6px 4px 0; border-top: 1px solid var(--line); vertical-align: middle; }
+  .keytable td.none { color: var(--muted); }
+  .scroll { max-height: 360px; overflow: auto; margin-bottom: 8px; padding-right: 4px; }
+  .hint { color: var(--muted); font-size: 12px; margin: 8px 2px; }
+  .primary { font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: 0; border-radius: 9px; padding: 7px 12px; cursor: pointer; }
+  @media (prefers-color-scheme: dark) { .primary { color: #0f1615; } }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -61,10 +73,17 @@
   <div class="list" id="shotList"></div>
 </section>
 
+<section id="keysView" hidden>
+  <h2><button class="back" id="keysBack" type="button">‹ Back</button> Keyboard shortcuts</h2>
+  <div class="scroll"><table class="keytable" id="keyTable"></table></div>
+  <button class="primary" id="setKeys" type="button">Set or change shortcuts…</button>
+  <p class="hint">In this toolbox, press a tool’s letter to start it, or use the arrow keys and Enter. “Anywhere” shortcuts work from any page; browsers let only four tools come with one ready-made, so choose your own for the rest.</p>
+</section>
+
 <footer>
-  <button id="allNotes" type="button">All my notes</button>
-  <button id="settings" type="button">Settings</button>
-  <span id="keys">Alt+Shift+R reads aloud</span>
+  <button id="allNotes" type="button" data-key="o" title="All my notes (O)">All my notes</button>
+  <button id="settings" type="button" data-key="," title="Settings (,)">Settings</button>
+  <button id="shortcuts" type="button" data-key="?" class="end" title="Keyboard shortcuts (?)">Shortcuts</button>
 </footer>
 <script src="popup.js"></script>
 </body>

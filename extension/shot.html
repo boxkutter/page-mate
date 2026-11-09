@@ -80,6 +80,11 @@
           <button class="ghost" id="saveJpg" title="Smaller file, softer text">Save JPEG</button>
           <button class="ghost" id="copyImg">Copy image</button>
         </div>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="autoCopy"><span>Copy each new screenshot automatically<br><small class="hint">so it is ready to paste (Ctrl+V) as soon as it is taken</small></span></label>
+        <div class="field" style="margin-top:10px"><label for="shotCaption">Keep with my notes</label>
+          <input type="text" id="shotCaption" placeholder="Caption (optional)" maxlength="2000">
+          <button class="ghost" id="toNotes" style="margin-top:6px;width:100%" title="Adds this picture (with your marks) to the notes for this page">Save to Notes</button>
+          <div class="status" id="notesStatus" role="status"></div></div>
         <table class="meta" id="meta"></table>
         <p class="hint" id="redactNote" hidden>Redactions and pixelation are burned into saved and copied images. The original is only kept if you seal it as evidence (below).</p>
       </div>
@@ -108,6 +113,8 @@
 <script src="osint-core.js"></script>
 <script src="shot-core.js"></script>
 <script src="shot-store.js"></script>
+<script src="notes-core.js"></script>
+<script src="shot-notes.js"></script>
 <script src="zip.js"></script>
 <script src="evidence.js"></script>
 <script src="trust.js"></script>

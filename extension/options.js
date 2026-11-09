@@ -207,6 +207,7 @@ $('keyMake').addEventListener('click', async () => { await KNSeal.getSigningKey(
 $('keyForget').addEventListener('click', async () => { if (confirm('Delete the signing key from this browser? You will not be able to sign new captures with it.')) { await KNSeal.forgetSigningKey(); renderKey(); } });
 
 $('recordHeaders').addEventListener('change', () => chrome.storage.sync.set({ recordHeaders: $('recordHeaders').checked }));
+$('shotAutoCopy').addEventListener('change', async () => { $('shotAutoCopy').checked = await krSetShotAutoCopy($('shotAutoCopy').checked); });
 $('tsaUrl').addEventListener('change', () => {
   const v = $('tsaUrl').value.trim();
   if (v && !/^https?:\/\//i.test(v)) { return; }
@@ -226,6 +227,7 @@ $('customServices').addEventListener('input', () => {
 (async () => {
   settings = await chrome.storage.sync.get(KR_DEFAULTS);
   $('recordHeaders').checked = settings.recordHeaders !== false;
+  $('shotAutoCopy').checked = !!settings.shotAutoCopy && await chrome.permissions.contains({ permissions: ['clipboardWrite'] }).catch(() => false);
   $('tsaUrl').value = settings.tsaUrl || '';
   $('shareInstance').value = settings.shareInstance || '';
   $('shareHashtags').value = settings.shareHashtags || '';

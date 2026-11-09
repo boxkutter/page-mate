@@ -95,7 +95,7 @@
     page.updated = new Date().toISOString();
     page.title = document.title || page.title;
     page.url = pageUrl();
-    const empty = !page.items.length && !(page.note || '').trim();
+    const empty = !page.items.length && !(page.note || '').trim() && !(page.shots || []).length;   // screenshots filed here keep the page alive
     try {
       const idx = (await chrome.storage.local.get('kn:idx'))['kn:idx'] || {};
       if (empty) { await chrome.storage.local.remove(key); delete idx[key]; }

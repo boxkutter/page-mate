@@ -276,36 +276,27 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   activate(tab, { mode: selection ? 'selection' : 'page', selectionText: selection ? info.selectionText : '' });
 });
 
-chrome.commands.onCommand.addListener(async (command, tab) => {
-  if (command === 'toggle-notes' || command === 'highlight-selection') {
-    if (!tab) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab) notesCommand(tab, command === 'toggle-notes' ? { type: 'kn-toggle' } : { type: 'kn-highlight', color: 'yellow' });
+// Every tool can be given a keyboard shortcut (chrome://extensions/shortcuts). Only four may have a default key.
+const COMMAND_TOOLS = {
+  'read-page': 'read', 'save-page': 'save-page', 'save-video': 'save-video', 'save-audio': 'save-audio', 'save-images': 'save-images',
+  'screenshot-region': 'shot-region', 'screenshot-visible': 'shot-visible', 'screenshot-full': 'shot-full', 'record-screen': 'record',
+  'investigate': 'investigate', 'lookup': 'lookup', 'archive': 'archive', 'share': 'share', 'all-notes': 'all-notes'
+};
+
+async function runCommand(command, tab) {
+  if (command === 'toggle-pause') {
+    const s = await getState();
+    if (s.tabId != null) toTab(s.tabId, { type: 'kr-toggle-pause' });
     return;
   }
-  if (command === 'read-page') {
-    if (!tab) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab) activate(tab);
-    return;
-  }
-  if (command === 'record-screen') {
-    if (!tab) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab) openRecord(tab);
-    return;
-  }
-  if (command === 'screenshot-region' || command === 'investigate') {
-    if (!tab) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab) { if (command === 'investigate') openInvestigate(tab, { view: 'entities' }); else startShot(tab, 'region'); }
-    return;
-  }
-  if (command === 'save-page' || command === 'save-video') {
-    if (!tab) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab) openSave(tab, { view: command === 'save-video' ? 'video' : 'document' });
-    return;
-  }
-  if (command !== 'toggle-pause') return;
-  const s = await getState();
-  if (s.tabId != null) toTab(s.tabId, { type: 'kr-toggle-pause' });
-});
+  const known = command === 'toggle-notes' || command === 'highlight-selection' || Object.prototype.hasOwnProperty.call(COMMAND_TOOLS, command);
+  if (!known) return;
+  if (!tab && command !== 'all-notes') [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab && command !== 'all-notes') return;
+  if (command === 'toggle-notes' || command === 'highlight-selection') return notesCommand(tab, command === 'toggle-notes' ? { type: 'kn-toggle' } : { type: 'kn-highlight', color: 'yellow' });
+  return runTool(COMMAND_TOOLS[command], tab);
+}
+chrome.commands.onCommand.addListener((command, tab) => runCommand(command, tab));
 
 // ---------- Notes ----------
 
@@ -780,9 +771,28 @@ async function finishShot(tab, shot, mode, opts = {}) {
   KOShotStore.sweep().catch(() => {});
   if (opts.returnId) return id;
   const url = chrome.runtime.getURL('shot.html?id=' + encodeURIComponent(id));
-  await chrome.tabs.create({ url, index: tab.index + 1, openerTabId: tab.id, active: true });
+  const viewer = await chrome.tabs.create({ url, index: tab.index + 1, openerTabId: tab.id, active: true });
+  await trackShotTab(viewer.id, id);
   return id;
 }
+
+// A screenshot waits in the browser only while its viewer tab is open: closing the tab deletes it (so save, copy or
+// file it first; the viewer warns about unsaved edits). Anything left behind (a crash, the browser closing) is swept after a day.
+const SHOT_TABS_KEY = 'koShotTabs';
+async function trackShotTab(tabId, id) {
+  const map = (await chrome.storage.session.get(SHOT_TABS_KEY).catch(() => ({})))[SHOT_TABS_KEY] || {};
+  map[tabId] = id;
+  await chrome.storage.session.set({ [SHOT_TABS_KEY]: map }).catch(() => {});
+}
+chrome.tabs.onRemoved.addListener(async tabId => {
+  const map = (await chrome.storage.session.get(SHOT_TABS_KEY).catch(() => ({})))[SHOT_TABS_KEY];
+  if (!map || map[tabId] == null) return;
+  const id = map[tabId];
+  delete map[tabId];
+  await chrome.storage.session.set({ [SHOT_TABS_KEY]: map }).catch(() => {});
+  await KOShotStore.del(id).catch(() => {});
+});
+chrome.runtime.onStartup.addListener(() => { KOShotStore.sweep().catch(() => {}); });
 
 async function startShot(tab, mode, opts = {}) {
   if (!tab || tab.id == null) return null;

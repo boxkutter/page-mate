@@ -11,8 +11,21 @@ const KR_DEFAULTS = {
   customServices: '',             // JSON list of extra lookup links
   shareInstance: '', shareHashtags: '', shareClean: true,
   // Sealed captures
-  capSign: false, capTimestamp: false, tsaUrl: 'https://freetsa.org/tsr', capShot: true
+  capSign: false, capTimestamp: false, tsaUrl: 'https://freetsa.org/tsr', capShot: true,
+  // Screenshots
+  shotAutoCopy: false             // copy each new screenshot to the clipboard as soon as it is taken
 };
+// Turns "copy each new screenshot to the clipboard automatically" on or off. Switching it on asks for the optional
+// clipboard permission, so call it straight from a click. -> the value now in force (false if the permission was refused).
+async function krSetShotAutoCopy(on) {
+  if (on) {
+    let ok = false;
+    try { ok = (await chrome.permissions.contains({ permissions: ['clipboardWrite'] })) || (await chrome.permissions.request({ permissions: ['clipboardWrite'] })); } catch (_) {}
+    if (!ok) on = false;
+  }
+  await chrome.storage.sync.set({ shotAutoCopy: !!on });
+  return !!on;
+}
 const KR_ALL_SITES = ['http://*/*', 'https://*/*'];
 const KR_MIN_SPEED = 0.5;
 const KR_MAX_SPEED = 2.0;

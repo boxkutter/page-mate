@@ -7,6 +7,12 @@ Everything PageMate can do, feature by feature. For installing and setting up, s
 - Click the toolbar icon to open the **toolbox**: one tile for each thing PageMate does (Read aloud, Notes, Save page, Video, Audio,
   Images, Screenshot, Record screen, Investigate, Look up, Archive, Share). Choose one. On browser pages that extensions can't touch,
   the tools that need a page are greyed out. Right-clicking the icon lists the same tools as a menu.
+- **From the keyboard:** each tile shows a letter; press it to start that tool (R read aloud, N notes, S save page, V video, U audio,
+  M images, C screenshot then A / V / W for area / visible / whole page, E record, I investigate, L look up, A archive, H share,
+  O all my notes). Arrow keys move between tiles, Enter starts one, Esc goes back. **Shortcuts** at the bottom of the toolbox lists them all.
+- **Shortcuts that work anywhere:** every tool, and the toolbox itself, has a slot at `brave://extensions/shortcuts` (the **Shortcuts** link
+  opens it). Alt+Shift+R (read), P (pause), S (save page) and V (video) come ready-made; browsers allow only four defaults, so set the
+  rest yourself. A good pattern: give the toolbox one key, then press a letter.
 - **Read aloud** (or Alt+Shift+R, which skips the toolbox) reads the page from where you're scrolled. While the reader is open the tile
   says **Close reader**; Alt+Shift+R also stops it.
 - With text selected, Read aloud / Alt+Shift+R reads just the selection. You can also right-click → **Read selection aloud**
@@ -206,7 +212,15 @@ The screenshot opens in a viewer where you can **mark it up** (box, arrow, highl
 undo, then **save as PNG or JPEG**, **copy** it, **share** it, or **seal it as evidence**. Marks are drawn on top of an untouched original; saved
 and copied images have them burned in, so a redaction really removes what is under it. A sealed screenshot package holds the original, the marked
 version if you made one, the page address and headers, and the usual manifest, fingerprints and chain of custody, with the optional signature and
-trusted timestamp. Screenshots wait in the browser for a day, then are discarded.
+trusted timestamp.
+
+**What happens to a screenshot.** Nothing is saved or copied until you choose. Save PNG / JPEG writes a file to Downloads; **Copy image**
+puts it on the clipboard to paste with Ctrl+V (tick **Copy each new screenshot automatically**, here or in Settings, to have that done for you
+the moment it is taken); **Save to Notes** files it (with an optional caption) under that page in *All my notes*, where you can open, copy,
+save or delete it later. Pictures filed there live in this browser and are not part of the text backup or the Markdown / Word export.
+The viewer keeps the picture only while its tab is open: **closing the tab deletes it** (leftovers, for example after a crash, are swept
+after a day), and it **warns before you close with marks or a crop that haven't been saved, copied, shared, filed or sealed**.
+Reloading the viewer is fine.
 
 ## Record the screen
 

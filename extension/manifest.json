@@ -41,6 +41,9 @@
     "open_in_tab": true
   },
   "commands": {
+    "_execute_action": {
+      "description": "Open the PageMate toolbox (pick a tool, then press its letter)"
+    },
     "read-page": {
       "suggested_key": {
         "default": "Alt+Shift+R"
@@ -79,12 +82,37 @@
     },
     "record-screen": {
       "description": "Record the screen, a window or a tab"
+    },
+    "save-audio": {
+      "description": "Download audio from this page"
+    },
+    "save-images": {
+      "description": "Download images from this page"
+    },
+    "screenshot-visible": {
+      "description": "Screenshot: the visible part of the page"
+    },
+    "screenshot-full": {
+      "description": "Screenshot: the whole page"
+    },
+    "lookup": {
+      "description": "Look up an address, name, domain, number…"
+    },
+    "archive": {
+      "description": "Archive this page (find or make saved copies)"
+    },
+    "share": {
+      "description": "Share this page"
+    },
+    "all-notes": {
+      "description": "Open All my notes"
     }
   },
   "minimum_chrome_version": "116",
   "optional_permissions": [
     "downloads",
     "pageCapture",
-    "tabs"
+    "tabs",
+    "clipboardWrite"
   ]
 }
