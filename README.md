@@ -52,7 +52,8 @@ asks, pick a voice, press **Preview**, and set the speed.
 
 | I want to… | Do this |
 |---|---|
-| Read the page aloud | Click the toolbar icon (**Alt+Shift+R**). Select text first to read just that. Click again to stop. |
+| Pick a tool | Click the toolbar icon: a toolbox of tiles (Read aloud, Notes, Save page, Video, Audio, Images, Screenshot, Record screen, Investigate, Look up, Archive, Share). |
+| Read the page aloud | Click the icon → **Read aloud**, or press **Alt+Shift+R**. Select text first to read just that. Press it again (or choose **Close reader**) to stop. |
 | Pause / resume | **Alt+Shift+P** |
 | Start reading from a paragraph | Hold **Alt** and click it (or use the ⌖ button in the player) |
 | Save a page as PDF / Word / Markdown / web page | Right-click the icon → **Save page…** (**Alt+Shift+S**) |

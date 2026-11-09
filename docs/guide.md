@@ -4,8 +4,12 @@ Everything PageMate can do, feature by feature. For installing and setting up, s
 
 ## Use
 
-- Click the icon (or Alt+Shift+R) to read the page from where you're scrolled. Click again to stop.
-- With text selected, the icon / Alt+Shift+R reads just the selection. You can also right-click → **Read selection aloud**
+- Click the toolbar icon to open the **toolbox**: one tile for each thing PageMate does (Read aloud, Notes, Save page, Video, Audio,
+  Images, Screenshot, Record screen, Investigate, Look up, Archive, Share). Choose one. On browser pages that extensions can't touch,
+  the tools that need a page are greyed out. Right-clicking the icon lists the same tools as a menu.
+- **Read aloud** (or Alt+Shift+R, which skips the toolbox) reads the page from where you're scrolled. While the reader is open the tile
+  says **Close reader**; Alt+Shift+R also stops it.
+- With text selected, Read aloud / Alt+Shift+R reads just the selection. You can also right-click → **Read selection aloud**
   (works inside embedded frames and text boxes too).
 - Alt+Shift+P pauses / resumes. Pausing for as long as you like is fine.
 - Hold Alt and click a paragraph to jump there. If your desktop uses Alt+click to move windows (common on Linux),
@@ -241,9 +245,9 @@ Think before sharing anything that could identify a source, a victim or a privat
   (`brave://…`, the Web Store, the PDF viewer). Everything else works.
 - **It reads menus or misses text**: select the text you want and use **Read selection aloud**.
 - **After updating the files**: click the reload arrow on the extension card in `brave://extensions`.
-  Pages that were already open keep working; click the icon again to bring the player back.
+  Pages that were already open keep working; open the toolbox and choose **Read aloud** (or press Alt+Shift+R) to bring the player back.
 - **Reading stopped after following a link to another site**: the extension only gets access to the site you
-  started it on. Click the icon on the new site to keep going.
+  started it on. Choose **Read aloud** (or press Alt+Shift+R) on the new site to keep going.
 
 ## Privacy
 

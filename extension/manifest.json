@@ -21,7 +21,8 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Read this page aloud (Alt+Shift+R)",
+    "default_title": "PageMate",
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -40,11 +41,11 @@
     "open_in_tab": true
   },
   "commands": {
-    "_execute_action": {
+    "read-page": {
       "suggested_key": {
         "default": "Alt+Shift+R"
       },
-      "description": "Start / stop reading this page (reads the selection if text is selected)"
+      "description": "Start / stop reading this page aloud (reads the selection if text is selected)"
     },
     "toggle-pause": {
       "suggested_key": {

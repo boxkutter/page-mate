@@ -3,6 +3,10 @@
 All notable changes to PageMate. (Versions before the rename were called "Kokoro Page Reader".)
 
 ## 1.7.0
+- Changed: **clicking the toolbar icon now opens a toolbox** with a tile for each tool (Read aloud, Notes, Save page, Video, Audio, Images,
+  Screenshot, Record screen, Investigate, Look up, Archive, Share) instead of starting the reader straight away. Pick what you want. Tools that
+  need a web page are greyed out on browser pages. **Alt+Shift+R still starts / stops reading** (it is now its own shortcut, so if you had
+  changed it at `chrome://extensions/shortcuts`, set it again). Right-click the icon still lists the tools, now including *Read this page aloud*.
 - New: **Investigate** (right-click → *Investigate this page…*, *Look up “…”*): **Look up** anything (address, domain, IP, email, hash, @handle,
   phone, coordinates, CVE, wallet, AS number, MAC, analytics id) in many services as plain links, with **defang / refang** and your own services;
   **Page entities** (everything on a page, CSV / Markdown); **Images & video** (EXIF / GPS / XMP / MP4 metadata, SHA-256, magnifier, error level

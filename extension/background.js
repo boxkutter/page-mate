@@ -100,7 +100,7 @@ function flashBadge(tabId, text, title) {
 
 function clearBadge(tabId) {
   chrome.action.setBadgeText({ tabId, text: '' }).catch(() => {});
-  chrome.action.setTitle({ tabId, title: 'Read this page aloud (Alt+Shift+R)' }).catch(() => {});
+  chrome.action.setTitle({ tabId, title: 'PageMate' }).catch(() => {});
 }
 
 // Returns an error string if the extension isn't ready to talk to the server.
@@ -187,6 +187,7 @@ chrome.runtime.onInstalled.addListener(details => {
     chrome.contextMenus.create({ id: 'kn-note', title: 'Highlight and add a note…', contexts: ['selection'] });
     chrome.contextMenus.create({ id: 'kn-open', title: 'Notes for this page', contexts: ['page'] });
     // Right-click on the toolbar icon.
+    chrome.contextMenus.create({ id: 'kr-action-read', title: 'Read this page aloud', contexts: ['action'] });
     chrome.contextMenus.create({ id: 'kn-action-open', title: 'Notes for this page', contexts: ['action'] });
     chrome.contextMenus.create({ id: 'kn-action-manager', title: 'All my notes…', contexts: ['action'] });
     // Investigate / capture
@@ -220,7 +221,8 @@ chrome.runtime.onInstalled.addListener(details => {
   if (details.reason === 'install') chrome.runtime.openOptionsPage();
 });
 
-chrome.action.onClicked.addListener(tab => { activate(tab); });
+// Clicking the toolbar icon opens popup.html (the toolbox); its tiles reach runTool() below.
+// The reader keeps its own shortcut, Alt+Shift+R (the 'read-page' command).
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (!tab) return;
@@ -229,6 +231,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     case 'kn-note': notesCommand(tab, { type: 'kn-highlight', color: 'yellow', withNote: true }); return;
     case 'kn-open': case 'kn-action-open': notesCommand(tab, { type: 'kn-open' }); return;
     case 'kn-action-manager': openNotesManager(); return;
+    case 'kr-action-read': activate(tab); return;
     case 'ko-lookup': openInvestigate(tab, { view: 'lookup', q: info.selectionText || '' }); return;
     case 'ko-lookup-link': openInvestigate(tab, { view: 'lookup', q: info.linkUrl || '' }); return;
     case 'ko-img-meta': { const web = /^https?:/i.test(info.srcUrl || ''); openInvestigate(tab, { view: 'media', img: web ? info.srcUrl : '', embedded: !web }); return; }
@@ -277,6 +280,11 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
   if (command === 'toggle-notes' || command === 'highlight-selection') {
     if (!tab) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab) notesCommand(tab, command === 'toggle-notes' ? { type: 'kn-toggle' } : { type: 'kn-highlight', color: 'yellow' });
+    return;
+  }
+  if (command === 'read-page') {
+    if (!tab) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab) activate(tab);
     return;
   }
   if (command === 'record-screen') {
@@ -536,6 +544,17 @@ async function handleMessage(msg, sender) {
       return { ok: true };
     }
 
+    case 'kr-popup-info': {
+      // is the reader open on this tab? (the toolbox shows "Close reader" instead of "Read aloud")
+      if (!fromToolbox(sender)) return { ok: false };
+      const pong = await toTab(Number(msg.tabId), { type: 'kr-ping' });
+      return { ok: true, readerOpen: !!(pong && pong.alive && pong.open) };
+    }
+    case 'kr-tool': {
+      if (!fromToolbox(sender)) return { ok: false };
+      const tab = await chrome.tabs.get(Number(msg.tabId)).catch(() => null);
+      return { ok: await runTool(String(msg.tool), tab) };
+    }
     case 'ko-region': await onRegion(msg, sender); return;
     case 'ko-shot-evidence': {
       try { return { ok: true, ...(await shotForEvidence(Number(msg.tabId), msg.returnTabId != null ? Number(msg.returnTabId) : null)) }; }
@@ -562,6 +581,36 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 });
 
 
+
+// ---------- the toolbox (toolbar icon popup) ----------
+
+const TOOLS = {
+  'read': t => activate(t),
+  'notes': t => notesCommand(t, { type: 'kn-open' }),
+  'save-page': t => openSave(t, { view: 'document' }),
+  'save-video': t => openSave(t, { view: 'video' }),
+  'save-audio': t => openSave(t, { view: 'audio' }),
+  'save-images': t => openSave(t, { view: 'image' }),
+  'shot-region': t => startShot(t, 'region'),
+  'shot-visible': t => startShot(t, 'visible'),
+  'shot-full': t => startShot(t, 'full'),
+  'record': t => openRecord(t),
+  'investigate': t => openInvestigate(t, { view: 'entities' }),
+  'lookup': t => openInvestigate(t, { view: 'lookup' }),
+  'archive': t => openInvestigate(t, { view: 'archive' }),
+  'share': t => openInvestigate(t, { view: 'share' }),
+  'all-notes': () => openNotesManager()
+};
+
+// Only the toolbox page itself may start tools (not a content script running inside a web page).
+const fromToolbox = sender => !!(sender && sender.url && sender.url.startsWith(chrome.runtime.getURL('popup.html')));
+
+async function runTool(name, tab) {
+  const fn = Object.prototype.hasOwnProperty.call(TOOLS, name) ? TOOLS[name] : null;
+  if (!fn) return false;
+  await fn(tab);
+  return true;
+}
 
 // ---------- Investigate page ----------
 
