@@ -71,10 +71,12 @@
       let n = 3; $('count').textContent = n;
       st.countTimer = setInterval(() => {
         n--;
-        if (n <= 0) { clearInterval(st.countTimer); st.countTimer = null; startRecording(); resolve(); }
+        if (n <= 0) { clearInterval(st.countTimer); st.countTimer = null; st.cancelCount = null; startRecording(); resolve(); }
         else $('count').textContent = n;
       }, 1000);
-      st.cancelCount = () => { clearInterval(st.countTimer); st.countTimer = null; cleanupStreams(); show('idle'); setStatus('Cancelled.'); resolve(); };
+      st.cancelCount = msg => { clearInterval(st.countTimer); st.countTimer = null; st.cancelCount = null; cleanupStreams(); show('idle'); setStatus(typeof msg === 'string' ? msg : 'Cancelled.'); resolve(); };
+      // sharing stopped from the browser's own bar before recording began: nothing to record
+      st.display.getVideoTracks()[0].onended = () => st.cancelCount && st.cancelCount('Sharing stopped before recording began, so nothing was recorded.');
     });
   }
   $('cancelCount').addEventListener('click', () => st.cancelCount && st.cancelCount());
@@ -94,6 +96,7 @@
     rec.onerror = e => setStatus('Recording error: ' + (e.error && e.error.message || 'unknown'), 'err');
     // sharing stopped from the browser's own bar
     st.display.getVideoTracks()[0].onended = () => { if (st.rec && st.rec.state !== 'inactive') stop(); };
+    st.saved = false;
     st.clock = R.clock(); st.clock.start(Date.now()); st.warned = false;
     rec.start(1000);
     show('live');
@@ -128,7 +131,7 @@
       bitrate: R.bitrateFor($('quality').value) || null, surface: vs.displaySurface, pageUrl: st.source.url, pageTitle: st.source.title,
       systemAudio: st.meta.hasSys, microphone: st.meta.hasMic, userAgent: navigator.userAgent
     });
-    st.fileName = fileName; st.startedAt = startedAt;
+    st.fileName = fileName; st.startedAt = startedAt; st.saved = false;
     cleanupStreams();
     document.title = 'Recording done';
     if (st.url) URL.revokeObjectURL(st.url);
@@ -146,10 +149,10 @@
   $('start').addEventListener('click', begin);
   $('pause').addEventListener('click', togglePause);
   $('stop').addEventListener('click', stop);
-  $('save').addEventListener('click', () => { download(st.blob, st.fileName); setStatus('Saved to your Downloads folder.', 'ok'); });
+  $('save').addEventListener('click', () => { download(st.blob, st.fileName); st.saved = true; setStatus('Saved to your Downloads folder.', 'ok'); });
   $('again').addEventListener('click', () => { if (st.url) URL.revokeObjectURL(st.url); st.url = ''; st.blob = null; $('player').removeAttribute('src'); show('idle'); setStatus(''); });
   $('discard').addEventListener('click', () => { if (confirm('Throw this recording away?')) $('again').click(); });
-  window.addEventListener('beforeunload', e => { if (st.rec && st.rec.state !== 'inactive') { e.preventDefault(); e.returnValue = ''; } else if (st.blob && !st.saved) { /* quiet: user may have saved */ } });
+  window.addEventListener('beforeunload', e => { if (st.rec && st.rec.state !== 'inactive') { e.preventDefault(); e.returnValue = ''; } else if (st.blob && st.blob.size && !st.saved) { e.preventDefault(); e.returnValue = ''; } });
 
   // ---------- seal ----------
   async function initSeal() {
@@ -194,6 +197,7 @@
       say('Packing the .zip…');
       const zip = await KNSeal.zipEntries(base, res.entries, st.startedAt);
       download(zip, base + '.zip');
+      st.saved = true;
       const log = (await chrome.storage.local.get('kn:seals'))['kn:seals'] || [];
       log.push(KNEvidence.logRow(info, res.manifestHash, base + '.zip'));
       await chrome.storage.local.set({ 'kn:seals': log.slice(-500) });

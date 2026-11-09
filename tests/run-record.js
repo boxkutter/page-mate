@@ -53,10 +53,15 @@ const listFiles = d => { const out = []; const walk = p => { for (const f of fs.
     console.log('   ' + info.replace(/\n/g, ' | ').replace(/\t/g, ' '));
     check('info: pause left out of the length (about 3s of ~4.5s), a size and a SHA-256', /Length\s+0:0[2-4]/.test(info) && /1 pause/.test(info) && /[0-9a-f]{64}/.test(info), info.slice(0, 120));
 
+    // closing the tab with an unsaved recording asks first; once saved it doesn't
+    const asks = () => page.evaluate(() => !window.dispatchEvent(new Event('beforeunload', { cancelable: true })));
+    check('unsaved recording: closing the tab asks first', await asks());
+
     // save
     await page.click('#save');
     const saved = await waitFor(() => listFiles(dl).find(f => /^Recording - .*\.(webm|mp4)$/.test(path.basename(f))), 10000);
     check('Save writes the video to Downloads', !!saved && fs.statSync(saved).size > 1000, saved && path.basename(saved));
+    check('saved recording: closing the tab no longer asks', !(await asks()));
     if (saved) {
       const probe = spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_name,width,height', '-of', 'csv=p=0', saved], { encoding: 'utf8' });
       check('the saved file is a real, decodable video (ffprobe)', probe.status === 0 && /\d+,\d+/.test(probe.stdout.replace(/\n/g, ',')), probe.stdout.trim() + probe.stderr.slice(0, 100));
@@ -98,6 +103,19 @@ const listFiles = d => { const out = []; const walk = p => { for (const f of fs.
   await sleep(1200);
   await page.click('#stop');
   check('a second recording completes', !!(await waitFor(() => page.$eval('#done', e => !e.hidden).catch(() => false), 15000)));
+
+  // sharing stopped from the browser's own bar during the countdown: back to the start, nothing recorded
+  await page.click('#again');
+  await page.evaluate(() => { const g = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices); navigator.mediaDevices.getDisplayMedia = async o => (window.__ds = await g(o)); });
+  await page.$eval('#countdown', e => { if (!e.checked) e.click(); });
+  await page.click('#start');
+  const counting = await waitFor(() => page.$eval('#counting', e => !e.hidden).catch(() => false), 15000);
+  check('countdown is shown', !!counting);
+  await page.evaluate(() => window.__ds.getVideoTracks()[0].dispatchEvent(new Event('ended')));
+  await sleep(300);
+  check('sharing stopped during the countdown: back to the start with an explanation, no recording', await page.$eval('#idle', e => !e.hidden) && /nothing was recorded/.test(await page.$eval('#status', e => e.textContent)));
+  await sleep(3500);
+  check('and no recording starts afterwards', await page.$eval('#idle', e => !e.hidden) && await page.$eval('#live', e => e.hidden));
 
   check('no page errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await browser.close();
