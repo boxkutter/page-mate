@@ -84,6 +84,21 @@
     @media (prefers-color-scheme: dark) { .btn.main { color: #0f1615; } }
     .status { margin-top: 6px; font-size: 11.5px; color: var(--muted); min-height: 1.2em; overflow-wrap: anywhere; }
     .status.ok { color: var(--ok); } .status.err { color: var(--err); }
+    .grid[hidden], .hint[hidden], .recpane[hidden] { display: none; }
+    .recpane { padding: 8px 10px 10px; user-select: text; overflow: auto; flex: 1 1 auto; min-height: 0; }
+    .chk { display: flex; align-items: center; gap: 7px; margin: 4px 0; font-size: 12.5px; cursor: pointer; }
+    .chk input { accent-color: var(--accent); margin: 0; }
+    .row2 { display: flex; gap: 10px; margin: 6px 0 2px; }
+    .sel { font-size: 12px; color: var(--muted); }
+    select { font: inherit; font-size: 12px; color: var(--ink); background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 2px 4px; }
+    .big { font: 700 28px/1.2 ui-monospace, Menlo, Consolas, monospace; text-align: center; margin: 4px 0; }
+    .ph .rdot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--rec); animation: blink 1.2s infinite; }
+    .ph .rdot.paused { animation: none; background: #c8a100; }
+    @keyframes blink { 50% { opacity: .25; } }
+    .recpane input[type=text] { margin-bottom: 5px; }
+    .btn svg { width: 14px; height: 14px; margin-right: 4px; vertical-align: -2px; }
+    .btn kbd { margin-left: 6px; font-size: 9px; }
+    .btn:disabled { opacity: .5; cursor: default; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
     td { padding: 3px 4px 3px 0; border-top: 1px solid var(--line); vertical-align: middle; }
     td.none { color: var(--muted); }
@@ -106,7 +121,8 @@
   const grid = el('div', { class: 'grid', role: 'toolbar', 'aria-label': 'Tools' });
   const hint = el('div', { class: 'hint', 'aria-live': 'polite' });
   const panel = el('div', { class: 'panel', hidden: true });
-  dock.append(top, grid, hint, panel);
+  const rec = el('div', { class: 'recpane', hidden: true, 'aria-label': 'Screen recorder' });
+  dock.append(top, grid, hint, panel, rec);
   shadow.append(dock);
 
   const PANELS = { shot: 1, lookup: 1, archive: 1, share: 1, keys: 1, card: 1 };
@@ -126,6 +142,7 @@
 
   // ---------- state ----------
   let open = false, current = '', card = null, grabbed = '', lastSel = '';
+  let view = 'tools', recorder = null;                          // 'tools' (the icons) or 'record' (the recorder replaces them)
   const pageSelection = () => { try { return (getSelection().toString() || '').trim().slice(0, 4000); } catch (_) { return ''; } };
   // Remember the last text selected on the page while the box is open (clicking into a field in the box clears the live selection).
   document.addEventListener('selectionchange', () => { if (open) { const t = pageSelection(); if (t) lastSel = t; } });
@@ -135,6 +152,7 @@
   function pick(id) {
     const d = TILES[id];
     grabbed = pageSelection() || lastSel;
+    if (id === 'record') return enterRecorder();
     if (d.submenu === 'shot') return showPanel(current === 'shot' ? '' : 'shot');
     if (id === 'lookup' || id === 'archive' || id === 'share') return showPanel(current === id ? '' : id);
     showPanel('');
@@ -281,6 +299,23 @@
     settle();
   }
 
+  // ---------- the recorder replaces the icons ----------
+  function enterRecorder() {
+    showPanel('');                                               // closes any open panel and drops an unclaimed screenshot card
+    if (!recorder) recorder = KODockRecord.mount(rec, { el, icon: svg, kbd, send, exit: exitRecorder, settle, fromKey: () => fromKey });
+    view = 'record';
+    grid.hidden = hint.hidden = true; rec.hidden = false;
+    recorder.reset();
+    recorder.show();
+    settle();
+  }
+  function exitRecorder() {
+    view = 'tools';
+    rec.hidden = true; grid.hidden = hint.hidden = false;
+    settle();
+    if (tileEls.record) tileEls.record.focus({ preventScroll: true });
+  }
+
   // ---------- header buttons ----------
   top.addEventListener('click', e => {
     if (!trusted(e)) return;
@@ -293,7 +328,7 @@
   });
 
   // ---------- keyboard ----------
-  const buttons = () => [...grid.querySelectorAll('button'), ...(panel.hidden ? [] : panel.querySelectorAll('button, a.pill, input'))];
+  const buttons = () => view === 'record' ? [...rec.querySelectorAll('button:not(:disabled), input, select')] : [...grid.querySelectorAll('button'), ...(panel.hidden ? [] : panel.querySelectorAll('button, a.pill, input'))];
   const mid = r => r.left + r.width / 2;
   function moveFocus(dir) {
     const list = buttons(), cur = shadow.activeElement, i = list.indexOf(cur);
@@ -312,6 +347,15 @@
     e.stopPropagation();                                      // the page must not react to keys typed in the toolbox
     if (!e.isTrusted || e.ctrlKey || e.altKey || e.metaKey || e.isComposing) return;
     const typing = (e.composedPath()[0] || {}).tagName === 'INPUT';
+    if (view === 'record' && recorder) {                       // the icons' letters are off while recording
+      if (e.key === 'Escape') { e.preventDefault(); if (!recorder.busy() && recorder.phase() === 'idle') recorder.leave(); else recorder.escape(); return; }
+      if (typing) return;
+      if (e.key.startsWith('Arrow')) { e.preventDefault(); moveFocus(e.key); return; }
+      if (e.key.length !== 1) return;
+      const hitR = rec.querySelector('[data-key="' + e.key.toLowerCase() + '"]');
+      if (hitR && !hitR.disabled) { e.preventDefault(); fromKey = true; try { hitR.click(); } finally { fromKey = false; } }
+      return;
+    }
     if (e.key === 'Escape') { e.preventDefault(); if (current) { const was = current; if (was === 'card') dismissCard(); else showPanel(''); const t = tileEls[was === 'card' ? 'shot' : was]; if (t) t.focus(); } else closeDock(); return; }
     if (typing) return;
     if (e.key.startsWith('Arrow')) { e.preventDefault(); moveFocus(e.key); return; }
@@ -389,6 +433,11 @@
       case 'ko-dock-ping': reply({ alive: true, open }); return;
       case 'ko-dock-toggle': (open ? Promise.resolve(closeDock()) : openDock()).then(() => reply({ open })); return true;
       case 'ko-dock-open': openDock().then(() => reply({ open })); return true;
+      case 'ko-dock-view': {
+        const go = () => { if (msg.view === 'record') enterRecorder(); reply({ ok: true }); };
+        (open ? Promise.resolve() : openDock()).then(go);
+        return true;
+      }
       case 'ko-dock-visible': host.style.visibility = msg.visible ? '' : 'hidden'; reply(true); return;
       case 'ko-dock-shot': {
         if (card && card.id !== msg.id) send({ type: 'ko-shot-drop', id: card.id });

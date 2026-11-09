@@ -138,7 +138,8 @@
     </div>
     <h2 style="margin-top:22px">Signing and timestamps for sealed captures</h2>
     <div class="field"><label for="tsaUrl">Trusted-timestamp server (RFC 3161)</label>
-      <div class="row"><input id="tsaUrl" type="text" spellcheck="false" autocomplete="off" placeholder="https://freetsa.org/tsr"></div>
+      <div class="row"><input id="tsaUrl" type="text" spellcheck="false" autocomplete="off" placeholder="https://freetsa.org/tsr"><button id="tsaAllow" type="button" class="ghost" title="The toolbox's recorder can add a timestamp only after you allow this server">Allow</button></div>
+      <div class="status" id="tsaAllowStatus" role="status"></div>
       <p class="help">Used when you tick “Add a trusted timestamp” on a sealed capture or screenshot. Only the SHA-256 of the manifest is sent. Presets: FreeTSA <code>https://freetsa.org/tsr</code>, DigiCert <code>https://timestamp.digicert.com</code>, Sectigo <code>https://timestamp.sectigo.com</code>.</p></div>
     <div class="field"><label>Signing key</label>
       <div id="keyInfo" class="help" style="margin:0 0 6px"></div>

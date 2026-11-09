@@ -151,7 +151,7 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Toolbox Te
       return w.evaluate(async (c, id) => runCommand(c, await chrome.tabs.get(id)), cmd, tabId);
     };
     const cases = [['save-audio', /save\.html.*view=audio/], ['save-images', /save\.html.*view=image/],
-      ['lookup', /investigate\.html.*view=lookup/], ['archive', /investigate\.html.*view=archive/], ['share', /investigate\.html.*view=share/], ['all-notes', /notes\.html/], ['investigate', /investigate\.html.*view=entities/], ['record-screen', /record\.html/], ['save-page', /save\.html.*view=document/]];
+      ['lookup', /investigate\.html.*view=lookup/], ['archive', /investigate\.html.*view=archive/], ['share', /investigate\.html.*view=share/], ['all-notes', /notes\.html/], ['investigate', /investigate\.html.*view=entities/], ['save-page', /save\.html.*view=document/]];
     for (const [cmd, re] of cases) {
       await callBg(cmd, pageTabId);
       const t = await findPage(re);
@@ -183,7 +183,14 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Toolbox Te
   await press('[data-tile="saveVideo"]', /save\.html.*view=video/, 'Video opens the Save tab on the video view');
   await press('[data-tile="saveAudio"]', /save\.html.*view=audio/, 'Audio opens the Save tab on the audio view');
   await press('[data-tile="saveImages"]', /save\.html.*view=image/, 'Images opens the Save tab on the image view');
-  await press('[data-tile="record"]', /record\.html/, 'Record screen opens the recorder');
+  {
+    const p = await openPopup(pageTabId);
+    await p.click('[data-tile="record"]');
+    const pane = await waitFor(async () => page.evaluate(() => { const h = document.getElementById('ko-dock-host'); return !!h && !h.shadowRoot.querySelector('.recpane').hidden; }), 10000);
+    check('Record screen shows the recorder inside the page’s toolbox', !!pane);
+    await page.evaluate(() => { const h = document.getElementById('ko-dock-host'); if (h) h.remove(); });
+    await p.close().catch(() => {});
+  }
   await press('[data-tile="investigate"]', /investigate\.html.*view=entities/, 'Investigate opens page entities');
   await press('[data-tile="lookup"]', /investigate\.html.*view=lookup/, 'Look up opens the lookup view');
   await press('[data-tile="archive"]', /investigate\.html.*view=archive/, 'Archive opens the archive view');

@@ -562,6 +562,9 @@ async function handleMessage(msg, sender) {
     }
 
     case 'ko-dock-state': { if (!sender.tab) return { ok: false }; await setDockOpen(sender.tab.id, !!msg.open); return { ok: true }; }
+    case 'ko-tsa': { if (!sender.tab) return { ok: false }; return tsaRelay(String(msg.url), String(msg.body)); }
+    case 'ko-has-origin': { if (!sender.tab) return { ok: false }; try { return { ok: true, has: await chrome.permissions.contains({ origins: [new URL(String(msg.url)).origin + '/*'] }) }; } catch (_) { return { ok: true, has: false }; } }
+    case 'ko-rec-window': { if (!sender.tab) return { ok: false }; await openRecord(sender.tab); return { ok: true }; }
     case 'ko-dock-commands': { if (!sender.tab) return { ok: false }; return { ok: true, commands: (await chrome.commands.getAll()).map(c => ({ name: c.name, shortcut: c.shortcut || '' })) }; }
     case 'ko-open-shortcuts': { if (!sender.tab) return { ok: false }; await chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }); return { ok: true }; }
     case 'ko-shot-data': { if (!sender.tab) return { ok: false }; return shotData(String(msg.id)); }
@@ -616,9 +619,26 @@ async function ensureDock(tabId) {
   const pong = await toTab(tabId, { type: 'ko-dock-ping' });
   if (pong && pong.alive) return true;
   try {
-    await chrome.scripting.executeScript({ target: { tabId }, files: ['toolbox-core.js', 'osint-core.js', 'dock.js'] });
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['toolbox-core.js', 'osint-core.js', 'record-core.js', 'zip.js', 'evidence.js', 'trust.js', 'seal.js', 'dock-record.js', 'dock.js'] });
     return true;
   } catch (_) { return false; }
+}
+
+// The toolbox asks for an RFC 3161 timestamp through here: a page can't send it itself (CORS), and the extension can only
+// reach the authority once the user has allowed that site (done in Settings).
+async function tsaRelay(url, bodyB64) {
+  let origin;
+  try { origin = new URL(url).origin; } catch (_) { return { ok: false, error: 'That isn’t a valid timestamp server address.' }; }
+  if (!/^https?:/i.test(origin)) return { ok: false, error: 'The timestamp server address must start with http:// or https://' };
+  if (!(await chrome.permissions.contains({ origins: [origin + '/*'] }).catch(() => false))) return { ok: false, needsPermission: true, error: 'Allow the timestamp server first (Settings → Investigating, screenshots and evidence → Allow).' };
+  try {
+    const bin = atob(bodyB64), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/timestamp-query', Accept: 'application/timestamp-reply' }, body: bytes, signal: AbortSignal.timeout(20000) });
+    const out = new Uint8Array(await res.arrayBuffer());
+    let s = ''; for (let i = 0; i < out.length; i += 0x8000) s += String.fromCharCode.apply(null, out.subarray(i, i + 0x8000));
+    return { ok: true, status: res.status, body: btoa(s) };
+  } catch (e) { return { ok: false, error: e && e.message ? e.message : String(e) }; }
 }
 
 async function toggleDock(tab) {
@@ -668,7 +688,8 @@ const TOOLS = {
   'shot-region': t => startShot(t, 'region'),
   'shot-visible': t => startShot(t, 'visible'),
   'shot-full': t => startShot(t, 'full'),
-  'record': t => openRecord(t),
+  // Recording happens in the toolbox itself. Where the toolbox can't be shown (browser pages), the recorder window is used.
+  'record': async t => { if (t && t.id != null && await ensureDock(t.id)) { await toTab(t.id, { type: 'ko-dock-view', view: 'record' }); } else await openRecord(t); },
   'investigate': t => openInvestigate(t, { view: 'entities' }),
   'lookup': t => openInvestigate(t, { view: 'lookup' }),
   'archive': t => openInvestigate(t, { view: 'archive' }),

@@ -9,10 +9,11 @@
   //   signing: { privateJwk, publicJwk } | null  sign manifest.json
   //   tsaUrl:  string | null                     ask this RFC 3161 authority to timestamp manifest.json
   //   onStatus(text)
+  //   fetchImpl:  optional replacement for fetch() when asking the timestamp authority (a page can't, because of CORS)
   // }
   // -> { base, entries: [{name, data}], manifestHash, warnings: [], plan }
   async function build(opts) {
-    const { files, info, signing, tsaUrl, onStatus } = opts;
+    const { files, info, signing, tsaUrl, onStatus, fetchImpl } = opts;
     const E = root.KNEvidence, T = root.KOTrust;
     const say = t => { try { onStatus && onStatus(t); } catch (_) {} };
     const warnings = [];
@@ -36,7 +37,7 @@
     if (tsaUrl) {
       say('Asking the timestamp authority…');
       try {
-        const got = await T.requestTimestamp(tsaUrl, manifestHash);
+        const got = await T.requestTimestamp(tsaUrl, manifestHash, fetchImpl ? { fetchImpl } : undefined);
         extraFiles.push({ name: 'timestamp.tsr', data: got.tsr }, { name: 'timestamp.tsq', data: got.tsq });
         plan.timestamp = { tsa: tsaUrl, genTime: got.info.genTime };
       } catch (e) { plan.timestampFailed = String(e && e.message || e).replace(/\.$/, ''); warnings.push('No trusted timestamp: ' + plan.timestampFailed + '.'); }

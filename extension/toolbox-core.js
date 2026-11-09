@@ -88,6 +88,9 @@
   ICONS.close = [['p', 'M6 6l12 12M18 6 6 18']];
   ICONS.keys = [['p', 'M3 7h18v10H3z'], ['p', 'M7 11h.01M11 11h.01M15 11h.01M7 14h10']];
   ICONS.back = [['p', 'M15 5l-7 7 7 7']];
+  ICONS.download = [['p', 'M12 4v11'], ['p', 'M7.5 11 12 15.5 16.5 11'], ['p', 'M5 19h14']];
+  ICONS.pause = [['p', 'M8 5v14M16 5v14']];
+  ICONS.play = [['p', 'M7 5l12 7-12 7z']];
   ICONS.copy = [['p', 'M9 9h11v11H9z'], ['p', 'M5 15V4h11']];
   ICONS.edit = [['p', 'M4 20h4L19 9l-4-4L4 16z']];
 

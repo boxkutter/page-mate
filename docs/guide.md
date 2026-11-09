@@ -10,8 +10,9 @@ Everything PageMate can do, feature by feature. For installing and setting up, s
   with **×**, **Esc**, or by clicking the toolbar icon again. On browser pages that extensions can't touch, the same tools open in a small window.
   Right-clicking the icon lists the same tools as a menu.
 - **Inside the toolbox:** *Screenshot* (area / visible / whole page, then Copy / Save / Notes / Edit… on the card it shows), *Look up*, *Archive*,
-  *Share* and the shortcut list work right in the box. The other tools open in their **own small window** (not a browser tab): Save page,
-  Video / Audio / Images downloads, Investigate, Record screen, the screenshot editor and All my notes. Read aloud and Notes use their own
+  *Share*, **Record screen** (its controls replace the icons until you go back) and the shortcut list work right in the box. The other tools open
+  in their **own small window** (not a browser tab): Save page, Video / Audio / Images downloads, Investigate, the screenshot editor and
+  All my notes. Read aloud and Notes use their own
   floating player and sidebar.
 - **From the keyboard:** each icon shows a letter; press it to start that tool (R read aloud, N notes, S save page, V video, U audio,
   M images, C screenshot then A / V / W for area / visible / whole page, E record, I investigate, L look up, A archive, H share,
@@ -230,20 +231,24 @@ Reloading the viewer is fine.
 
 ## Record the screen
 
-Right-click → **Record screen…** (or the toolbar icon's menu, or a shortcut you set at `brave://extensions/shortcuts`). A recorder tab
-opens; press **Start recording** and the browser's own picker asks what to share: a whole screen, one window or one tab. Pick a **tab** to
-capture its sound too. Options: screen/tab sound, **microphone** (mixed into the same track; the browser asks permission), a 3-second
-countdown, 15/30/60 frames a second, a quality level, and **WebM** (most reliable) or **MP4** where your browser can make it.
+Choose the **Record** icon in the toolbox (or press **E** in it, or use the right-click menu / a shortcut). The icons are **replaced by the
+recorder, right in the small box**: tick the options, press **Start recording**, and the browser's own picker asks what to share: a whole
+screen, one window or one tab. Pick a **tab** to capture its sound too. Options: screen/tab sound, **microphone** (mixed into the same track;
+the browser asks permission), a 3-second countdown, a quality level, and **WebM** (most reliable) or **MP4** where your browser can make it.
+The back arrow (or Esc) returns to the tool icons; neither ever stops a recording by accident.
 
-While recording you can pause and resume (paused time is left out of the length), switch to the window you're recording, then come back
-and press **Stop**; the browser's own "Stop sharing" bar also ends it. Afterwards you can play it back, **save** it, or **seal it as evidence**:
-the package holds the recording exactly as the browser made it, a `recording-info.json` (when it started and stopped, how long, what kind of
+While recording the box shows a clock and the size so far, with **Pause** (P) and **Stop** (S); paused time is left out of the length. You
+can scroll and use the page, and the browser's own "Stop sharing" bar also ends it. **Reloading or leaving the page ends the recording**,
+because the box is part of that page, so the browser asks before you leave. For a recording that must survive page changes, use **Recorder
+window** (a button in the box; it is also what opens on browser pages, where the box can't appear), which records from its own window.
+When it stops, the box shows the length and size with **Save**, **Seal…** (a small form: case, your name, signing, a trusted timestamp)
+and **Discard**; an unsaved recording asks before it is thrown away. A **sealed** package holds the recording exactly as the browser made it, a `recording-info.json` (when it started and stopped, how long, what kind of
 surface was shared, whether sound and microphone were on, the browser), the SHA-256 manifest and chain of custody, and the optional signature
 and trusted timestamp, like any other sealed capture.
 
 Things to know: the file is **not re-encoded**. WebM files from browsers usually have no duration header, so some players show no length or
 can't jump around; the length PageMate shows is measured. The recording is held in memory until you save it (it warns past 1.5 GB), and
-**closing the recorder tab discards it**. Nothing is uploaded, and no extra permission is needed. Only record what you're entitled to: other
+**closing the page (or the recorder window) discards it**. Nothing is uploaded, and no extra permission is needed. A trusted timestamp from the box needs the timestamp server allowed once (Settings → *Allow*). Only record what you're entitled to: other
 people's calls, windows and private messages may be covered by consent and privacy laws where you live.
 
 ## Share

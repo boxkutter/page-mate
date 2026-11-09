@@ -117,11 +117,16 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Dock Test 
   check('the toolbox is still there', !(await dockState()).hidden);
   await closePopups();
   await page.bringToFront();
-  for (const [key, re, name] of [['i', /investigate\.html.*view=entities/, 'Investigate'], ['e', /record\.html/, 'Record screen'], ['v', /save\.html.*view=video/, 'Video'], ['u', /save\.html.*view=audio/, 'Audio'], ['m', /save\.html.*view=image/, 'Images']]) {
+  for (const [key, re, name] of [['i', /investigate\.html.*view=entities/, 'Investigate'], ['v', /save\.html.*view=video/, 'Video'], ['u', /save\.html.*view=audio/, 'Audio'], ['m', /save\.html.*view=image/, 'Images']]) {
     await page.bringToFront(); await press(key);
     check(name + ' (' + key.toUpperCase() + ') opens in a small window', !!(await findPopup(re)));
     await closePopups();
   }
+  await page.bringToFront(); await press('e');
+  const recView = await page.evaluate(() => { const r = document.getElementById('ko-dock-host').shadowRoot; return { grid: !r.querySelector('.grid').hidden, pane: !r.querySelector('.recpane').hidden }; });
+  check('Record screen (E) swaps the icons for the recorder inside the box (details in run-dock-record.js)', recView.pane && !recView.grid && !(await popups()).some(u => /record\.html/.test(u)), JSON.stringify(recView));
+  await press('Escape');
+  check('…and Esc brings the icons back', await page.evaluate(() => { const r = document.getElementById('ko-dock-host').shadowRoot; return !r.querySelector('.grid').hidden && r.querySelector('.recpane').hidden; }));
   await page.bringToFront();
   await press('o');
   check('All my notes (O) opens in a small window', !!(await findPopup(/notes\.html/)));

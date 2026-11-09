@@ -206,6 +206,11 @@ async function renderKey() {
 $('keyMake').addEventListener('click', async () => { await KNSeal.getSigningKey(true); renderKey(); });
 $('keyForget').addEventListener('click', async () => { if (confirm('Delete the signing key from this browser? You will not be able to sign new captures with it.')) { await KNSeal.forgetSigningKey(); renderKey(); } });
 
+$('tsaAllow').addEventListener('click', async () => {
+  const url = $('tsaUrl').value.trim() || 'https://freetsa.org/tsr';
+  try { status($('tsaAllowStatus'), (await KNSeal.ensureOriginAccess(url)) ? 'Allowed. Timestamps from the toolbox’s recorder will use this server.' : 'Not allowed.', ''); }
+  catch (e) { status($('tsaAllowStatus'), e.message || String(e), 'err'); }
+});
 $('recordHeaders').addEventListener('change', () => chrome.storage.sync.set({ recordHeaders: $('recordHeaders').checked }));
 $('shotAutoCopy').addEventListener('change', async () => { $('shotAutoCopy').checked = await krSetShotAutoCopy($('shotAutoCopy').checked); });
 $('tsaUrl').addEventListener('change', () => {

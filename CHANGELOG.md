@@ -11,9 +11,11 @@ All notable changes to PageMate. (Versions before the rename were called "Kokoro
   icon-click shortcut a different key, that key now opens the toolbox instead, and you can set a new key for reading). Right-click the icon still
   lists the tools, now including *Read this page aloud*.
 - New: **tools run inside the toolbox where they can.** **Screenshot** (selected area / visible part / whole page: the box hides while the
-  picture is taken, then shows it as a card with **Copy, Save, Notes and Edit…**), **Look up** (filled with your selected text), **Archive**,
-  **Share** (quotes your selection) and **Shortcuts** all work in the box. The other tools open in their **own small window, not a browser tab**
-  (Save page, Video / Audio / Images downloads, Investigate, Record screen, the screenshot editor, All my notes); browser tabs are now used
+  picture is taken, then shows it as a card with **Copy, Save, Notes and Edit…**), **Record screen** (the icons are replaced by recorder
+  controls: options, countdown, clock with Pause / Stop, then Save / Seal… / Discard; the back arrow returns to the icons), **Look up** (filled
+  with your selected text), **Archive**, **Share** (quotes your selection) and **Shortcuts** all work in the box. The other tools open in their
+  **own small window, not a browser tab** (Save page, Video / Audio / Images downloads, Investigate, the screenshot editor, All my notes);
+  browser tabs are now used
   only for Settings and for the outside sites that lookups, archives and sharing open. The reader and Notes keep their own floating player /
   sidebar.
 - New: **keyboard control of the toolbox.** Each icon shows its letter (R read aloud, N notes, S save page, V video, U audio, M images,
@@ -36,7 +38,9 @@ All notable changes to PageMate. (Versions before the rename were called "Kokoro
 - New: **Screenshots**: selected area, visible part, or whole page (stitched), with box / arrow / highlight / text, **redact**, pixelate, crop,
   save PNG / JPEG, copy, share, or **seal as evidence**.
 - New: **Record screen**: a whole screen, one window or one tab (and its sound, plus optional microphone) to a WebM or MP4 file, with pause,
-  countdown, quality and frame-rate choices; save it or **seal it as evidence** (signed / trusted-timestamped like any capture). No new permission.
+  countdown, quality and frame-rate choices; save it or **seal it as evidence** (signed / trusted-timestamped like any capture). No new permission. It runs in the toolbox; a recording made
+  there ends if you reload or leave the page (the browser asks first), so there is also a **Recorder window** for long, multi-page sessions.
+  The Settings page has an **Allow** button for the timestamp server, which the toolbox's recorder needs before it can add a timestamp.
 - New: **Share** to X, Bluesky, Mastodon, Threads, Reddit, LinkedIn, Facebook, Telegram, WhatsApp, Hacker News and email, with tracking codes
   removed, length limits respected and warnings for private-looking links. Nothing is posted for you.
 - Evidence: sealed packages can now include a **full-page screenshot**, **response headers** (cookie values removed), **page details**,
