@@ -1,4 +1,4 @@
-importScripts('common.js', 'osint-core.js', 'shot-core.js', 'shot-store.js');
+importScripts('common.js', 'osint-core.js', 'shot-core.js', 'shot-store.js', 'notes-core.js', 'shot-notes.js');
 
 // ---------- persistent state ----------
 // MV3 service workers are shut down after ~30s idle, so anything we need
@@ -221,8 +221,10 @@ chrome.runtime.onInstalled.addListener(details => {
   if (details.reason === 'install') chrome.runtime.openOptionsPage();
 });
 
-// Clicking the toolbar icon opens popup.html (the toolbox); its tiles reach runTool() below.
+// Clicking the toolbar icon (or the "Open the toolbox" shortcut) shows / hides the floating toolbox, dock.js, in the page.
+// On pages where nothing can be injected (browser pages, the web store) the same tools appear in a small window instead.
 // The reader keeps its own shortcut, Alt+Shift+R (the 'read-page' command).
+chrome.action.onClicked.addListener(tab => { toggleDock(tab); });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (!tab) return;
@@ -230,7 +232,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     case 'kn-highlight': notesCommand(tab, { type: 'kn-highlight', color: 'yellow' }); return;
     case 'kn-note': notesCommand(tab, { type: 'kn-highlight', color: 'yellow', withNote: true }); return;
     case 'kn-open': case 'kn-action-open': notesCommand(tab, { type: 'kn-open' }); return;
-    case 'kn-action-manager': openNotesManager(); return;
+    case 'kn-action-manager': openNotesManager(undefined, tab); return;
     case 'kr-action-read': activate(tab); return;
     case 'ko-lookup': openInvestigate(tab, { view: 'lookup', q: info.selectionText || '' }); return;
     case 'ko-lookup-link': openInvestigate(tab, { view: 'lookup', q: info.linkUrl || '' }); return;
@@ -328,7 +330,31 @@ async function notesCommand(tab, msg) {
   }
 }
 
-async function openNotesManager(focusKey) {
+// ---------- tool windows ----------
+// Tools open in their own small window (not a browser tab), placed in the corner of the window you were using. Tabs are
+// kept for the Settings page. If the browser can't make a popup window, a normal tab is used instead.
+const TOOL_SIZES = { save: [980, 800], investigate: [980, 800], record: [480, 720], shot: [1100, 780], notes: [980, 780], toolbox: [400, 620] };
+
+async function createToolWindow(url, kind, nearTab) {
+  let [width, height] = TOOL_SIZES[kind] || [900, 700];
+  let base = null;
+  try { base = nearTab && nearTab.windowId != null ? await chrome.windows.get(nearTab.windowId) : null; } catch (_) {}
+  // never bigger than the window you are working in (small screens), and tucked into its top-right corner
+  if (base && base.width && base.height) { width = Math.min(width, Math.max(420, base.width - 40)); height = Math.min(height, Math.max(420, base.height - 70)); }
+  const placed = { url, type: 'popup', width, height, focused: true };
+  if (base && base.left != null && base.width) { placed.left = Math.max(0, base.left + base.width - width - 24); placed.top = Math.max(0, (base.top || 0) + 56); }
+  // try: where we want it; then wherever the browser likes; then smaller; and only then a tab
+  for (const opts of [placed, { url, type: 'popup', width, height, focused: true }, { url, type: 'popup', width: Math.min(width, 560), height: Math.min(height, 440), focused: true }]) {
+    try {
+      const win = await chrome.windows.create(opts);
+      const t = win.tabs && win.tabs[0];
+      if (t) return t;
+    } catch (e) { console.warn('PageMate: popup window failed:', e && e.message || e); }
+  }
+  return chrome.tabs.create({ url, active: true });
+}
+
+async function openNotesManager(focusKey, nearTab) {
   const url = chrome.runtime.getURL('notes.html') + (focusKey ? '#focus=' + encodeURIComponent(focusKey) : '');
   const stored = await chrome.storage.session.get('krNotesTab').catch(() => ({}));
   const id = stored.krNotesTab;
@@ -340,7 +366,7 @@ async function openNotesManager(focusKey) {
       return;
     } catch (_) {}
   }
-  const t = await chrome.tabs.create({ url });
+  const t = await createToolWindow(url, 'notes', nearTab);
   await chrome.storage.session.set({ krNotesTab: t.id }).catch(() => {});
 }
 
@@ -392,7 +418,7 @@ async function openSave(tab, { view = 'document', scope, frameId, srcUrl } = {})
       return;
     } catch (_) { delete map[tab.id]; } // it was closed
   }
-  const created = await chrome.tabs.create({ url, index: tab.index + 1, openerTabId: tab.id, active: true });
+  const created = await createToolWindow(url, 'save', tab);
   map[tab.id] = created.id;
   await chrome.storage.session.set({ [SAVE_TABS_KEY]: map }).catch(() => {});
 }
@@ -535,6 +561,13 @@ async function handleMessage(msg, sender) {
       return { ok: true };
     }
 
+    case 'ko-dock-state': { if (!sender.tab) return { ok: false }; await setDockOpen(sender.tab.id, !!msg.open); return { ok: true }; }
+    case 'ko-dock-commands': { if (!sender.tab) return { ok: false }; return { ok: true, commands: (await chrome.commands.getAll()).map(c => ({ name: c.name, shortcut: c.shortcut || '' })) }; }
+    case 'ko-open-shortcuts': { if (!sender.tab) return { ok: false }; await chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }); return { ok: true }; }
+    case 'ko-shot-data': { if (!sender.tab) return { ok: false }; return shotData(String(msg.id)); }
+    case 'ko-shot-notes': { if (!sender.tab) return { ok: false }; return shotToNotes(String(msg.id), String(msg.caption || '')); }
+    case 'ko-shot-edit': { if (!sender.tab) return { ok: false }; return openShotEditor(sender.tab, String(msg.id)); }
+    case 'ko-shot-drop': { if (!sender.tab) return { ok: false }; await dropDockShot(String(msg.id)); return { ok: true }; }
     case 'kr-popup-info': {
       // is the reader open on this tab? (the toolbox shows "Close reader" instead of "Read aloud")
       if (!fromToolbox(sender)) return { ok: false };
@@ -542,8 +575,10 @@ async function handleMessage(msg, sender) {
       return { ok: true, readerOpen: !!(pong && pong.alive && pong.open) };
     }
     case 'kr-tool': {
-      if (!fromToolbox(sender)) return { ok: false };
-      const tab = await chrome.tabs.get(Number(msg.tabId)).catch(() => null);
+      // from the floating toolbox (a content script, so it comes with its tab) or from the fallback toolbox window
+      const fromDock = !!sender.tab && msg.from === 'dock';
+      if (!fromDock && !fromToolbox(sender)) return { ok: false };
+      const tab = fromDock ? sender.tab : await chrome.tabs.get(Number(msg.tabId)).catch(() => null);
       return { ok: await runTool(String(msg.tool), tab) };
     }
     case 'ko-region': await onRegion(msg, sender); return;
@@ -573,7 +608,55 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 
 
 
-// ---------- the toolbox (toolbar icon popup) ----------
+// ---------- the floating toolbox (dock.js) ----------
+
+const DOCK_KEY = 'koDock';          // tabs where the toolbox is open: { [tabId]: true }, so it comes back after a page change
+
+async function ensureDock(tabId) {
+  const pong = await toTab(tabId, { type: 'ko-dock-ping' });
+  if (pong && pong.alive) return true;
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['toolbox-core.js', 'osint-core.js', 'dock.js'] });
+    return true;
+  } catch (_) { return false; }
+}
+
+async function toggleDock(tab) {
+  if (!tab || tab.id == null) return;
+  if (!(await ensureDock(tab.id))) { await openToolboxWindow(tab); return; }
+  await toTab(tab.id, { type: 'ko-dock-toggle' });
+}
+
+async function openToolboxWindow(tab) {
+  const url = chrome.runtime.getURL('popup.html?tab=' + tab.id);
+  await createToolWindow(url, 'toolbox', tab);
+}
+
+async function setDockOpen(tabId, open) {
+  const map = (await chrome.storage.session.get(DOCK_KEY).catch(() => ({})))[DOCK_KEY] || {};
+  if (open) map[tabId] = true; else delete map[tabId];
+  await chrome.storage.session.set({ [DOCK_KEY]: map }).catch(() => {});
+}
+
+// After you go to another page in a tab where the toolbox was open, put it back (needs access to that site).
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+  if (changeInfo.status !== 'complete') return;
+  const map = (await chrome.storage.session.get(DOCK_KEY).catch(() => ({})))[DOCK_KEY];
+  if (!map || !map[tabId]) return;
+  if (await ensureDock(tabId)) await toTab(tabId, { type: 'ko-dock-open' });
+  else await setDockOpen(tabId, false);
+});
+chrome.tabs.onRemoved.addListener(tabId => { setDockOpen(tabId, false); });
+
+const dockVisible = (tabId, visible) => toTab(tabId, { type: 'ko-dock-visible', visible });
+// Runs fn with the toolbox out of sight, so it never appears in a screenshot.
+async function withDockHidden(tabId, fn) {
+  const r = await dockVisible(tabId, false);
+  if (r) await sleep(120);
+  try { return await fn(); } finally { if (r) dockVisible(tabId, true); }
+}
+
+// ---------- the toolbox tools (shared with the fallback window) ----------
 
 const TOOLS = {
   'read': t => activate(t),
@@ -590,7 +673,7 @@ const TOOLS = {
   'lookup': t => openInvestigate(t, { view: 'lookup' }),
   'archive': t => openInvestigate(t, { view: 'archive' }),
   'share': t => openInvestigate(t, { view: 'share' }),
-  'all-notes': () => openNotesManager()
+  'all-notes': t => openNotesManager(undefined, t)
 };
 
 // Only the toolbox page itself may start tools (not a content script running inside a web page).
@@ -625,7 +708,7 @@ async function openInvestigate(tab, { view = 'entities', q, img, quote, embedded
       return;
     } catch (_) { delete map[tab.id]; }
   }
-  const created = await chrome.tabs.create({ url, index: tab.index + 1, openerTabId: tab.id, active: true });
+  const created = await createToolWindow(url, 'investigate', tab);
   map[tab.id] = created.id;
   await chrome.storage.session.set({ [INV_TABS_KEY]: map }).catch(() => {});
 }
@@ -648,7 +731,7 @@ async function openRecord(tab) {
   if (stored.koRecTab != null) {
     try { const t = await chrome.tabs.get(stored.koRecTab); await chrome.tabs.update(t.id, { active: true }); if (t.windowId != null) chrome.windows.update(t.windowId, { focused: true }).catch(() => {}); return; } catch (_) {}
   }
-  const created = await chrome.tabs.create({ url, index: tab ? tab.index + 1 : undefined, active: true });
+  const created = await createToolWindow(url, 'record', tab);
   await chrome.storage.session.set({ koRecTab: created.id }).catch(() => {});
 }
 chrome.tabs.onRemoved.addListener(async tabId => { const s = await chrome.storage.session.get('koRecTab').catch(() => ({})); if (s.koRecTab === tabId) chrome.storage.session.remove('koRecTab').catch(() => {}); });
@@ -764,15 +847,33 @@ async function captureVisible(tab) {
   return out;
 }
 
+// A small JPEG of the top of a picture, as a data: URL, for the card in the toolbox.
+async function thumbOf(blob, maxW = 232, maxH = 150) {
+  const bmp = await createImageBitmap(blob);
+  const k = Math.min(1, maxW / bmp.width);
+  const w = Math.max(1, Math.round(bmp.width * k)), h = Math.max(1, Math.min(maxH, Math.round(bmp.height * k)));
+  const c = new OffscreenCanvas(w, h);
+  c.getContext('2d').drawImage(bmp, 0, 0, bmp.width, Math.min(bmp.height, h / k), 0, 0, w, h);
+  bmp.close();
+  return blobToDataUrl(await c.convertToBlob({ type: 'image/jpeg', quality: 0.7 }));
+}
+const blobToDataUrl = blob => new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = () => reject(r.error); r.readAsDataURL(blob); });
+
 async function finishShot(tab, shot, mode, opts = {}) {
   const id = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(36).slice(2);
   const t = await chrome.tabs.get(tab.id).catch(() => tab);
   await KOShotStore.put(id, { blob: shot.blob, at: Date.now(), capturedAt: new Date().toISOString(), mode, width: shot.width, height: shot.height, dpr: shot.dpr, truncated: !!shot.truncated, pageHeight: shot.pageHeight || 0, shownHeight: shot.shownHeight || 0, url: shot.url || t.url || '', title: shot.title || t.title || '', sourceTab: tab.id });
   KOShotStore.sweep().catch(() => {});
   if (opts.returnId) return id;
-  const url = chrome.runtime.getURL('shot.html?id=' + encodeURIComponent(id));
-  const viewer = await chrome.tabs.create({ url, index: tab.index + 1, openerTabId: tab.id, active: true });
-  await trackShotTab(viewer.id, id);
+  // The result appears as a card in the floating toolbox (copy / save / keep with notes / edit). If the toolbox can't be
+  // shown in this tab, open the editor in its own window instead.
+  try {
+    if (await ensureDock(tab.id)) {
+      const r = await toTab(tab.id, { type: 'ko-dock-shot', id, thumb: await thumbOf(shot.blob), mode, width: shot.width, height: shot.height, truncated: !!shot.truncated, title: shot.title || t.title || '', url: shot.url || t.url || '' });
+      if (r && r.ok) { await trackDockShot(id, tab.id); return id; }
+    }
+  } catch (e) { console.warn('PageMate: toolbox card failed:', e && e.message || e); }
+  await openShotEditor(tab, id);
   return id;
 }
 
@@ -794,19 +895,67 @@ chrome.tabs.onRemoved.addListener(async tabId => {
 });
 chrome.runtime.onStartup.addListener(() => { KOShotStore.sweep().catch(() => {}); });
 
+// Screenshots shown as a card in the toolbox live in the browser until you dismiss the card, close the editor opened from
+// it, or close the tab (anything left behind is swept after a day).
+const DOCK_SHOTS_KEY = 'koDockShots';
+async function trackDockShot(id, tabId) {
+  const map = (await chrome.storage.session.get(DOCK_SHOTS_KEY).catch(() => ({})))[DOCK_SHOTS_KEY] || {};
+  map[id] = tabId;
+  await chrome.storage.session.set({ [DOCK_SHOTS_KEY]: map }).catch(() => {});
+}
+async function dropDockShot(id) {
+  const map = (await chrome.storage.session.get(DOCK_SHOTS_KEY).catch(() => ({})))[DOCK_SHOTS_KEY] || {};
+  if (map[id] == null) return;                       // already handed to an editor window, which deletes it when closed
+  delete map[id];
+  await chrome.storage.session.set({ [DOCK_SHOTS_KEY]: map }).catch(() => {});
+  await KOShotStore.del(id).catch(() => {});
+}
+chrome.tabs.onRemoved.addListener(async tabId => {
+  const map = (await chrome.storage.session.get(DOCK_SHOTS_KEY).catch(() => ({})))[DOCK_SHOTS_KEY];
+  if (!map) return;
+  for (const [id, t] of Object.entries(map)) if (t === tabId) await dropDockShot(id);
+});
+
+async function openShotEditor(tab, id) {
+  const map = (await chrome.storage.session.get(DOCK_SHOTS_KEY).catch(() => ({})))[DOCK_SHOTS_KEY] || {};
+  delete map[id];                                    // the editor window owns it now
+  await chrome.storage.session.set({ [DOCK_SHOTS_KEY]: map }).catch(() => {});
+  const viewer = await createToolWindow(chrome.runtime.getURL('shot.html?id=' + encodeURIComponent(id)), 'shot', tab);
+  await trackShotTab(viewer.id, id);
+  return { ok: true };
+}
+
+async function shotData(id) {
+  const rec = await KOShotStore.get(id).catch(() => null);
+  if (!rec || !rec.blob) return { ok: false, error: 'That screenshot is no longer available.' };
+  return { ok: true, dataUrl: await blobToDataUrl(rec.blob), at: rec.capturedAt };
+}
+
+async function shotToNotes(id, caption) {
+  const rec = await KOShotStore.get(id).catch(() => null);
+  if (!rec || !rec.blob) return { ok: false, error: 'That screenshot is no longer available.' };
+  try {
+    const sha = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await rec.blob.arrayBuffer()))].map(b => b.toString(16).padStart(2, '0')).join('');
+    const r = await KShotNotes.add(rec.blob, { url: rec.url, title: rec.title, capturedAt: rec.capturedAt, mode: rec.mode, width: rec.width, height: rec.height, sha256: sha, marked: false, note: caption.slice(0, 2000) });
+    return { ok: true, count: r.count, key: r.key };
+  } catch (e) { return { ok: false, error: e && e.message ? e.message : String(e) }; }
+}
+
 async function startShot(tab, mode, opts = {}) {
   if (!tab || tab.id == null) return null;
   try {
     clearBadge(tab.id);
     if (mode === 'region') {
+      await dockVisible(tab.id, false);              // out of the way while you drag; it comes back with the result
       await chrome.storage.session.set({ [REGION_KEY]: { tabId: tab.id, windowId: tab.windowId, index: tab.index, at: Date.now() } });
       await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['shot-select.js'] });
       return null;                                // the rest happens when the overlay reports a rectangle
     }
-    const shot = mode === 'full' ? await captureFullPage(tab) : await captureVisible(tab);
+    const shot = await withDockHidden(tab.id, () => mode === 'full' ? captureFullPage(tab) : captureVisible(tab));
     clearBadge(tab.id);
     return await finishShot(tab, shot, mode, opts);
   } catch (e) {
+    dockVisible(tab.id, true);
     flashBadge(tab.id, '!', 'Screenshot failed: ' + (e && e.message || e));
     console.warn('PageMate screenshot:', e && e.message || e);
     if (opts.throwErrors) throw e;
@@ -817,14 +966,17 @@ async function startShot(tab, mode, opts = {}) {
 async function onRegion(msg, sender) {
   const stored = (await chrome.storage.session.get(REGION_KEY))[REGION_KEY];
   await chrome.storage.session.remove(REGION_KEY);
-  if (!stored || !sender.tab || sender.tab.id !== stored.tabId || msg.cancelled) return;
-  if (Date.now() - stored.at > 10 * 60 * 1000) return;
+  if (!stored || !sender.tab || sender.tab.id !== stored.tabId) return;
+  const back = () => dockVisible(stored.tabId, true);
+  if (msg.cancelled || Date.now() - stored.at > 10 * 60 * 1000) { back(); return; }
   const tab = await chrome.tabs.get(stored.tabId).catch(() => null);
   if (!tab) return;
   try {
     const shot = await captureRegion(tab, msg.rect, msg.dpr);
+    back();
     await finishShot(tab, { ...shot, url: tab.url, title: tab.title }, 'region');
   } catch (e) {
+    back();
     flashBadge(tab.id, '!', 'Screenshot failed: ' + (e && e.message || e));
   }
 }
@@ -837,7 +989,7 @@ async function shotForEvidence(tabId, returnTabId) {
   if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
   await sleep(450);
   try {
-    const shot = await captureFullPage(tab);
+    const shot = await withDockHidden(tabId, () => captureFullPage(tab));
     clearBadge(tabId);
     return { id: await finishShot(tab, shot, 'full', { returnId: true }), truncated: !!shot.truncated, width: shot.width, height: shot.height };
   } finally {

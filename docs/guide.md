@@ -4,17 +4,23 @@ Everything PageMate can do, feature by feature. For installing and setting up, s
 
 ## Use
 
-- Click the toolbar icon to open the **toolbox**: one tile for each thing PageMate does (Read aloud, Notes, Save page, Video, Audio,
-  Images, Screenshot, Record screen, Investigate, Look up, Archive, Share). Choose one. On browser pages that extensions can't touch,
-  the tools that need a page are greyed out. Right-clicking the icon lists the same tools as a menu.
-- **From the keyboard:** each tile shows a letter; press it to start that tool (R read aloud, N notes, S save page, V video, U audio,
+- Click the toolbar icon to show the **toolbox**: a small panel of icons, one for each thing PageMate does (Read aloud, Notes, Save page,
+  Video, Audio, Images, Screenshot, Record screen, Investigate, Look up, Archive, Share). It floats in the corner of the page, **drag its title
+  bar to move it** (it remembers where), it stays in front and stays open (even when you go to another page in the tab) until you close it
+  with **×**, **Esc**, or by clicking the toolbar icon again. On browser pages that extensions can't touch, the same tools open in a small window.
+  Right-clicking the icon lists the same tools as a menu.
+- **Inside the toolbox:** *Screenshot* (area / visible / whole page, then Copy / Save / Notes / Edit… on the card it shows), *Look up*, *Archive*,
+  *Share* and the shortcut list work right in the box. The other tools open in their **own small window** (not a browser tab): Save page,
+  Video / Audio / Images downloads, Investigate, Record screen, the screenshot editor and All my notes. Read aloud and Notes use their own
+  floating player and sidebar.
+- **From the keyboard:** each icon shows a letter; press it to start that tool (R read aloud, N notes, S save page, V video, U audio,
   M images, C screenshot then A / V / W for area / visible / whole page, E record, I investigate, L look up, A archive, H share,
-  O all my notes). Arrow keys move between tiles, Enter starts one, Esc goes back. **Shortcuts** at the bottom of the toolbox lists them all.
-- **Shortcuts that work anywhere:** every tool, and the toolbox itself, has a slot at `brave://extensions/shortcuts` (the **Shortcuts** link
-  opens it). Alt+Shift+R (read), P (pause), S (save page) and V (video) come ready-made; browsers allow only four defaults, so set the
+  O all my notes). Arrow keys move between icons, Enter starts one, Esc goes back and then closes. The **keyboard** button (or ?) lists them all.
+- **Shortcuts that work anywhere:** every tool, and the toolbox itself, has a slot at `brave://extensions/shortcuts` (the keyboard panel's
+  button opens it). Alt+Shift+R (read), P (pause), S (save page) and V (video) come ready-made; browsers allow only four defaults, so set the
   rest yourself. A good pattern: give the toolbox one key, then press a letter.
-- **Read aloud** (or Alt+Shift+R, which skips the toolbox) reads the page from where you're scrolled. While the reader is open the tile
-  says **Close reader**; Alt+Shift+R also stops it.
+- **Read aloud** (or Alt+Shift+R, which skips the toolbox) reads the page from where you're scrolled. Choosing it again, or pressing
+  Alt+Shift+R again, closes the reader.
 - With text selected, Read aloud / Alt+Shift+R reads just the selection. You can also right-click → **Read selection aloud**
   (works inside embedded frames and text boxes too).
 - Alt+Shift+P pauses / resumes. Pausing for as long as you like is fine.

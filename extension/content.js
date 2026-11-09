@@ -20,7 +20,7 @@
   for (const stale of document.querySelectorAll('#kr-player-host')) stale.remove();
 
   const BLOCK_SEL = 'p,li,h1,h2,h3,h4,h5,h6,blockquote,dd,dt,figcaption,td,th,pre,caption,div,section,article,main,ul,ol,dl,table,tr,figure,header,footer,details,summary,hr';
-  const SKIP_BASE = 'script,style,noscript,template,svg,canvas,video,audio,iframe,object,embed,nav,aside,button,select,textarea,input,label,[hidden],[role="navigation"],[role="complementary"],#kr-player-host';
+  const SKIP_BASE = 'script,style,noscript,template,svg,canvas,video,audio,iframe,object,embed,nav,aside,button,select,textarea,input,label,[hidden],[role="navigation"],[role="complementary"],#kr-player-host,#ko-dock-host';
   // Hidden from assistive tech / modal: skipped unless that leaves nothing to read
   // (cookie banners often mark the whole page aria-hidden while they're open).
   const SKIP_STRICT = SKIP_BASE + ',[aria-hidden="true"],[role="dialog"]';

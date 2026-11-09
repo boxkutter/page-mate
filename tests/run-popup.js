@@ -23,7 +23,7 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Toolbox Te
   fs.writeFileSync(path.join(ext, 'manifest.json'), JSON.stringify(mf, null, 2));
 
   // ---- what ships
-  check('the icon opens the toolbox (default_popup = popup.html)', shipped.action.default_popup === 'popup.html');
+  check('the icon now shows the floating toolbox; this page is the fallback for browser pages (see run-dock.js)', !shipped.action.default_popup && fs.existsSync(path.join(__dirname, '../extension/popup.html')));
   check('Alt+Shift+R still reads aloud, as its own command (the icon no longer does)', shipped.commands['read-page'] && shipped.commands['read-page'].suggested_key.default === 'Alt+Shift+R' && !(shipped.commands._execute_action && shipped.commands._execute_action.suggested_key));
   check('the toolbox itself can be given a shortcut (_execute_action, no default key)', !!shipped.commands._execute_action && !shipped.commands._execute_action.suggested_key);
   check('still at most 4 default shortcuts', Object.values(shipped.commands).filter(c => c.suggested_key).length <= 4);
@@ -109,9 +109,9 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Toolbox Te
     check('pressing C opens the screenshot choices', await p.$eval('#shotView', e => !e.hidden));
     check('…and focuses the first choice', await p.evaluate(() => document.activeElement.dataset.tile) === 'shot-region');
     await p.keyboard.press('v');
-    const t = await findPage(/shot\.html\?id=/);
-    check('C then V takes a visible-part screenshot', !!t);
-    if (t) await t.close().catch(() => {});
+    const card = await waitFor(() => page.$('pierce/.panel img.thumb'), 15000);
+    check('C then V takes a visible-part screenshot (it appears as a card in the page’s toolbox)', !!card);
+    await page.evaluate(() => { const h = document.getElementById('ko-dock-host'); if (h) h.remove(); });
     await p.close().catch(() => {});
     const p2 = await openPopup(pageTabId);
     await p2.keyboard.press('o');
@@ -150,13 +150,19 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Toolbox Te
       const w = await t.worker();
       return w.evaluate(async (c, id) => runCommand(c, await chrome.tabs.get(id)), cmd, tabId);
     };
-    const cases = [['save-audio', /save\.html.*view=audio/], ['save-images', /save\.html.*view=image/], ['screenshot-full', /shot\.html\?id=/], ['screenshot-visible', /shot\.html\?id=/],
+    const cases = [['save-audio', /save\.html.*view=audio/], ['save-images', /save\.html.*view=image/],
       ['lookup', /investigate\.html.*view=lookup/], ['archive', /investigate\.html.*view=archive/], ['share', /investigate\.html.*view=share/], ['all-notes', /notes\.html/], ['investigate', /investigate\.html.*view=entities/], ['record-screen', /record\.html/], ['save-page', /save\.html.*view=document/]];
     for (const [cmd, re] of cases) {
       await callBg(cmd, pageTabId);
       const t = await findPage(re);
       check('shortcut command “' + cmd + '” starts its tool', !!t, t && t.url().replace(X, '').slice(0, 60));
       if (t) await t.close().catch(() => {});
+    }
+    for (const cmd of ['screenshot-full', 'screenshot-visible']) {
+      await callBg(cmd, pageTabId);
+      const card = await waitFor(() => page.$('pierce/.panel img.thumb'), 20000);
+      check('shortcut command “' + cmd + '” takes a screenshot and shows its card', !!card);
+      await page.evaluate(() => { const h = document.getElementById('ko-dock-host'); if (h) h.remove(); });
     }
     await callBg('not-a-command', pageTabId);
     check('an unknown command does nothing', true);
@@ -182,8 +188,14 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Toolbox Te
   await press('[data-tile="lookup"]', /investigate\.html.*view=lookup/, 'Look up opens the lookup view');
   await press('[data-tile="archive"]', /investigate\.html.*view=archive/, 'Archive opens the archive view');
   await press('[data-tile="share"]', /investigate\.html.*view=share/, 'Share opens the share view');
-  await press('shot:shot-visible', /shot\.html\?id=/, 'Screenshot → Visible part opens the screenshot editor');
-  await press('shot:shot-full', /shot\.html\?id=/, 'Screenshot → Whole page opens the screenshot editor');
+  for (const [key, label] of [['shot-visible', 'Visible part'], ['shot-full', 'Whole page']]) {
+    const p = await openPopup(pageTabId);
+    await p.click('[data-tile="shot"]'); await p.click('#shotList [data-tile="' + key + '"]');
+    const card = await waitFor(() => page.$('pierce/.panel img.thumb'), 20000);
+    check('Screenshot → ' + label + ' shows the picture as a card in the page’s toolbox', !!card);
+    await page.evaluate(() => { const h = document.getElementById('ko-dock-host'); if (h) h.remove(); });
+    await p.close().catch(() => {});
+  }
 
   // selected area: the drag overlay is injected into the page (a closed shadow root, so look for its effect)
   {

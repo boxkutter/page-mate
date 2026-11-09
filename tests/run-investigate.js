@@ -170,6 +170,12 @@ ${COLORS.map((c, i) => `<div class="band" style="background:${c}">Band ${i + 1}$
   await W.evaluate(() => chrome.storage.local.set({ 'ko:trail': { on: false, case: '' } }));
   await t2.close();
 
+  // A screenshot now shows up as a card in the floating toolbox; "Edit…" on that card opens the editor. Do the same here.
+  const editLatestShot = async () => {
+    const sid = await waitFor(() => W.evaluate(async () => Object.keys((await chrome.storage.session.get('koDockShots')).koDockShots || {}).pop()), 40000);
+    if (sid) await W.evaluate(async (tid, id) => openShotEditor(await chrome.tabs.get(tid), id), tabId, sid);
+  };
+
   // ----- Screenshot: dragged area
   await article.bringToFront();
   await article.setViewport({ width: 1000, height: 700, deviceScaleFactor: 1 });
@@ -177,6 +183,7 @@ ${COLORS.map((c, i) => `<div class="band" style="background:${c}">Band ${i + 1}$
   await W.evaluate(async id => { const t = await chrome.tabs.get(id); await startShot(t, 'region'); }, tabId);
   await article.waitForFunction(() => !!window.__koSelect, { timeout: 5000 }).catch(() => {});
   await article.mouse.move(100, 120); await article.mouse.down(); await article.mouse.move(400, 320, { steps: 5 }); await article.mouse.up();
+  await editLatestShot();
   const regionPage = await waitFor(async () => (await browser.pages()).find(p => p.url().includes('shot.html')), 20000);
   check('region screenshot: viewer opens after a drag', !!regionPage);
   if (regionPage) {
@@ -193,6 +200,7 @@ ${COLORS.map((c, i) => `<div class="band" style="background:${c}">Band ${i + 1}$
   await sleep(300);
   const startErr = await W.evaluate(async id => { const t = await chrome.tabs.get(id); try { await startShot(t, 'full', { throwErrors: true }); return ''; } catch (e) { return String(e && e.message || e); } }, tabId);
   check('screenshot: capture ran without error', !startErr, startErr);
+  await editLatestShot();
   const shotPage = await waitFor(async () => (await browser.pages()).find(p => p.url().includes('shot.html')), 40000);
   check('screenshot: viewer opens', !!shotPage);
   if (shotPage) {

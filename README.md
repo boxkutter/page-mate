@@ -52,7 +52,7 @@ asks, pick a voice, press **Preview**, and set the speed.
 
 | I want to… | Do this |
 |---|---|
-| Pick a tool | Click the toolbar icon: a toolbox of tiles (Read aloud, Notes, Save page, Video, Audio, Images, Screenshot, Record screen, Investigate, Look up, Archive, Share). Each tile has a letter: press it. **Shortcuts** at the bottom lists them, and the browser-wide shortcut of every tool. |
+| Pick a tool | Click the toolbar icon: a small **floating toolbox** appears in the page (drag it anywhere; it stays in front until you close it) with an icon for each tool: Read aloud, Notes, Save page, Video, Audio, Images, Screenshot, Record screen, Investigate, Look up, Archive, Share. Each icon has a letter: press it. The keyboard button lists them, and the browser-wide shortcut of every tool. |
 | Read the page aloud | Click the icon → **Read aloud**, or press **Alt+Shift+R**. Select text first to read just that. Press it again (or choose **Close reader**) to stop. |
 | Pause / resume | **Alt+Shift+P** |
 | Start reading from a paragraph | Hold **Alt** and click it (or use the ⌖ button in the player) |

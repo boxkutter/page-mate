@@ -21,7 +21,7 @@
 
   const SKIP = 'script,style,noscript,template,canvas,object,embed,nav,select,textarea,input,' +
     'datalist,optgroup,option,svg,math-hidden,[hidden]:not([hidden="until-found"]),[role="navigation"],' +
-    '[role="dialog"],[role="alertdialog"],[aria-modal="true"],#kr-player-host';
+    '[role="dialog"],[role="alertdialog"],[aria-modal="true"],#kr-player-host,#ko-dock-host';
   const PAGE_CHROME = 'header,footer,aside,[role="banner"],[role="contentinfo"],[role="complementary"]';
   const NOISE_NAME = /(^|[\s_-])(cookie|consent|gdpr|skip-?link|breadcrumbs?|screenreader|sr-only|visually-hidden)([\s_-]|$)/i;
   const ROOT_CANDIDATES = 'main,[role="main"],article,#content,#main,#main-content,.user_content,.show-content,' +

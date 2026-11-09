@@ -47,7 +47,8 @@ const PAGE = '<!doctype html><html><head><meta charset="utf-8"><title>Viewer Tes
   };
   const findPage = re => waitFor(async () => (await browser.pages()).find(p => re.test(p.url())), 12000);
   const takeShot = async (mode = 'visible') => {
-    await callBg(async (m, id) => startShot(await chrome.tabs.get(id), m), mode, pageTabId);
+    // the screenshot appears as a card in the floating toolbox; "Edit…" on it opens this editor, so do that
+    await callBg(async (m, id) => { const tab = await chrome.tabs.get(id); const sid = await startShot(tab, m); if (sid) await openShotEditor(tab, sid); }, mode, pageTabId);
     const v = await findPage(/shot\.html\?id=/);
     if (v) { v.on('pageerror', e => errors.push(e.message)); v.on('dialog', d => d.accept());   // the "leave this page?" prompt, when there are unsaved edits
       await v.bringToFront(); await v.setViewport({ width: 1300, height: 900 }); await v.waitForSelector('#cv'); await waitFor(() => v.$eval('#meta', e => e.textContent.includes('SHA-256')).catch(() => false)); }

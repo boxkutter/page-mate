@@ -3,11 +3,24 @@
 All notable changes to PageMate. (Versions before the rename were called "Kokoro Page Reader".)
 
 ## 1.7.0
-- New: **keyboard control of the toolbox.** Every tile shows its letter (R read aloud, N notes, S save page, V video, U audio, M images,
-  C screenshot, E record, I investigate, L look up, A archive, H share); press it to start that tool. Arrow keys move between tiles, Enter
-  starts one, Esc goes back. A **Shortcuts** link at the bottom lists every letter and every browser-wide shortcut, and opens the browser's
-  shortcuts page to set them. Every tool now has a shortcut slot (including *Open the toolbox*), though browsers allow only four to come with a
-  default key.
+- Changed: **clicking the toolbar icon now shows a floating toolbox** in the page instead of starting the reader. It is a small panel of icons
+  (Read aloud, Notes, Save page, Video, Audio, Images, Screenshot, Record screen, Investigate, Look up, Archive, Share) that sits in the
+  bottom-left corner, **can be dragged anywhere** (it remembers where), **stays in front** and stays open until you close it (×, Esc or the icon
+  again), including when you go to another page in the tab. Where the browser doesn't allow that (browser pages, the web store) the same tools
+  appear in a small window instead. **Alt+Shift+R still starts / stops reading** (it is now its own shortcut; if you had given the old
+  icon-click shortcut a different key, that key now opens the toolbox instead, and you can set a new key for reading). Right-click the icon still
+  lists the tools, now including *Read this page aloud*.
+- New: **tools run inside the toolbox where they can.** **Screenshot** (selected area / visible part / whole page: the box hides while the
+  picture is taken, then shows it as a card with **Copy, Save, Notes and Edit…**), **Look up** (filled with your selected text), **Archive**,
+  **Share** (quotes your selection) and **Shortcuts** all work in the box. The other tools open in their **own small window, not a browser tab**
+  (Save page, Video / Audio / Images downloads, Investigate, Record screen, the screenshot editor, All my notes); browser tabs are now used
+  only for Settings and for the outside sites that lookups, archives and sharing open. The reader and Notes keep their own floating player /
+  sidebar.
+- New: **keyboard control of the toolbox.** Each icon shows its letter (R read aloud, N notes, S save page, V video, U audio, M images,
+  C screenshot, E record, I investigate, L look up, A archive, H share, O all my notes); press it to start that tool. Arrow keys move between
+  icons, Enter starts one, Esc goes back, then closes. The **keyboard** button (or ?) lists every letter and every browser-wide shortcut and opens
+  the browser's shortcuts page to set them. Every tool now has a shortcut slot (including *Open the toolbox*), though browsers allow only four
+  to come with a default key.
 - New: **screenshots can be filed with your notes** (*Save to Notes*, with an optional caption). They appear under the page in *All my notes*
   (open, copy, save, delete) and are not part of the text backup.
 - New: **copy each screenshot automatically** as soon as it is taken (off by default; in the viewer or Settings; asks for the clipboard permission).
@@ -15,10 +28,6 @@ All notable changes to PageMate. (Versions before the rename were called "Kokoro
   **warns before closing with marks or a crop you haven't saved, copied or filed**.
 - Fixed: stopping the screen share during the recorder's countdown now cancels instead of recording nothing; closing the recorder with an unsaved
   recording asks first.
-- Changed: **clicking the toolbar icon now opens a toolbox** with a tile for each tool (Read aloud, Notes, Save page, Video, Audio, Images,
-  Screenshot, Record screen, Investigate, Look up, Archive, Share) instead of starting the reader straight away. Pick what you want. Tools that
-  need a web page are greyed out on browser pages. **Alt+Shift+R still starts / stops reading** (it is now its own shortcut; if you had
-  given the old icon-click shortcut a different key, that key now opens the toolbox instead, and you can set a new key for reading) Right-click the icon still lists the tools, now including *Read this page aloud*.
 - New: **Investigate** (right-click → *Investigate this page…*, *Look up “…”*): **Look up** anything (address, domain, IP, email, hash, @handle,
   phone, coordinates, CVE, wallet, AS number, MAC, analytics id) in many services as plain links, with **defang / refang** and your own services;
   **Page entities** (everything on a page, CSV / Markdown); **Images & video** (EXIF / GPS / XMP / MP4 metadata, SHA-256, magnifier, error level
