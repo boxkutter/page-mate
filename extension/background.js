@@ -1,4 +1,4 @@
-importScripts('common.js');
+importScripts('common.js', 'osint-core.js', 'shot-core.js', 'shot-store.js');
 
 // ---------- persistent state ----------
 // MV3 service workers are shut down after ~30s idle, so anything we need
@@ -189,6 +189,29 @@ chrome.runtime.onInstalled.addListener(details => {
     // Right-click on the toolbar icon.
     chrome.contextMenus.create({ id: 'kn-action-open', title: 'Notes for this page', contexts: ['action'] });
     chrome.contextMenus.create({ id: 'kn-action-manager', title: 'All my notes…', contexts: ['action'] });
+    // Investigate / capture
+    chrome.contextMenus.create({ id: 'ko-lookup', title: 'Look up “%s”…', contexts: ['selection'] });
+    chrome.contextMenus.create({ id: 'ko-lookup-link', title: 'Look up this link…', contexts: ['link'] });
+    chrome.contextMenus.create({ id: 'ko-rev', title: 'Reverse image search', contexts: ['image'] });
+    for (const e of KOsint.REVERSE_IMAGE) chrome.contextMenus.create({ id: 'ko-rev:' + e.id, parentId: 'ko-rev', title: e.name, contexts: ['image'] });
+    chrome.contextMenus.create({ id: 'ko-rev:all', parentId: 'ko-rev', title: 'All of them (5 tabs)', contexts: ['image'] });
+    chrome.contextMenus.create({ id: 'ko-img-meta', title: 'Image metadata and checks…', contexts: ['image'] });
+    chrome.contextMenus.create({ id: 'ko-arch', title: 'Archive this page', contexts: ['page', 'link'] });
+    chrome.contextMenus.create({ id: 'ko-arch:view', parentId: 'ko-arch', title: 'See saved copies (Wayback Machine)', contexts: ['page', 'link'] });
+    chrome.contextMenus.create({ id: 'ko-arch:save', parentId: 'ko-arch', title: 'Save it now to the Wayback Machine', contexts: ['page', 'link'] });
+    chrome.contextMenus.create({ id: 'ko-arch:today', parentId: 'ko-arch', title: 'See / save on archive.today', contexts: ['page', 'link'] });
+    chrome.contextMenus.create({ id: 'ko-investigate', title: 'Investigate this page…', contexts: ['page'] });
+    chrome.contextMenus.create({ id: 'ko-shot', title: 'Screenshot', contexts: ['page', 'selection'] });
+    chrome.contextMenus.create({ id: 'ko-shot:region', parentId: 'ko-shot', title: 'Selected area…', contexts: ['page', 'selection'] });
+    chrome.contextMenus.create({ id: 'ko-shot:visible', parentId: 'ko-shot', title: 'Visible part of the page', contexts: ['page', 'selection'] });
+    chrome.contextMenus.create({ id: 'ko-shot:full', parentId: 'ko-shot', title: 'Whole page (scrolls and stitches)', contexts: ['page', 'selection'] });
+    chrome.contextMenus.create({ id: 'ko-record', title: 'Record screen…', contexts: ['page', 'selection'] });
+    chrome.contextMenus.create({ id: 'ko-share', title: 'Share…', contexts: ['page', 'selection'] });
+    chrome.contextMenus.create({ id: 'ko-action-investigate', title: 'Investigate this page…', contexts: ['action'] });
+    chrome.contextMenus.create({ id: 'ko-action-shot-region', title: 'Screenshot: selected area…', contexts: ['action'] });
+    chrome.contextMenus.create({ id: 'ko-action-shot-full', title: 'Screenshot: whole page', contexts: ['action'] });
+    chrome.contextMenus.create({ id: 'ko-action-record', title: 'Record screen…', contexts: ['action'] });
+    chrome.contextMenus.create({ id: 'ko-action-share', title: 'Share this page…', contexts: ['action'] });
     chrome.contextMenus.create({ id: 'kr-action-save-page', title: 'Save page as PDF / Word / Markdown…', contexts: ['action'] });
     chrome.contextMenus.create({ id: 'kr-action-save-video', title: 'Download a video from this page…', contexts: ['action'] });
     chrome.contextMenus.create({ id: 'kr-action-save-images', title: 'Download images from this page…', contexts: ['action'] });
@@ -206,6 +229,15 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     case 'kn-note': notesCommand(tab, { type: 'kn-highlight', color: 'yellow', withNote: true }); return;
     case 'kn-open': case 'kn-action-open': notesCommand(tab, { type: 'kn-open' }); return;
     case 'kn-action-manager': openNotesManager(); return;
+    case 'ko-lookup': openInvestigate(tab, { view: 'lookup', q: info.selectionText || '' }); return;
+    case 'ko-lookup-link': openInvestigate(tab, { view: 'lookup', q: info.linkUrl || '' }); return;
+    case 'ko-img-meta': { const web = /^https?:/i.test(info.srcUrl || ''); openInvestigate(tab, { view: 'media', img: web ? info.srcUrl : '', embedded: !web }); return; }
+    case 'ko-investigate': case 'ko-action-investigate': openInvestigate(tab, { view: 'entities' }); return;
+    case 'ko-record': case 'ko-action-record': openRecord(tab); return;
+    case 'ko-share': case 'ko-action-share': openInvestigate(tab, { view: 'share', quote: info.selectionText || '' }); return;
+    case 'ko-shot:region': case 'ko-action-shot-region': startShot(tab, 'region'); return;
+    case 'ko-shot:visible': startShot(tab, 'visible'); return;
+    case 'ko-shot:full': case 'ko-action-shot-full': startShot(tab, 'full'); return;
     case 'kr-save-selection': openSave(tab, { view: 'document', scope: 'selection' }); return;
     case 'kr-save-page': case 'kr-action-save-page': openSave(tab, { view: 'document' }); return;
     case 'kr-save-video':
@@ -218,6 +250,25 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     case 'kr-save-image': openSave(tab, { view: 'image', srcUrl: /^https?:/i.test(info.srcUrl || '') ? info.srcUrl : '' }); return;
     case 'kr-save-images-page': case 'kr-action-save-images': openSave(tab, { view: 'image' }); return;
   }
+  if (String(info.menuItemId).startsWith('ko-rev:')) {
+    const id = String(info.menuItemId).slice(7);
+    const src = info.srcUrl || '';
+    const ids = id === 'all' ? KOsint.REVERSE_IMAGE.map(e => e.id) : [id];
+    for (const eid of ids) {
+      const u = KOsint.reverseImageUrl(eid, src);
+      if (u) chrome.tabs.create({ url: u, index: tab.index + 1, active: ids.length === 1 });
+      else { openInvestigate(tab, { view: 'media', embedded: true }); break; }   // data:/blob: images: the page explains the options
+    }
+    return;
+  }
+  if (String(info.menuItemId).startsWith('ko-arch:')) {
+    const base = info.linkUrl || info.pageUrl || tab.url || '';
+    if (!/^https?:/i.test(base)) return;
+    const L = KOsint.archiveLinks(base);
+    const u = { view: L.waybackAll, save: L.waybackSave, today: L.archiveTodayNewest }[String(info.menuItemId).slice(8)];
+    if (u) chrome.tabs.create({ url: u, index: tab.index + 1 });
+    return;
+  }
   const selection = info.menuItemId === 'kr-read-selection';
   activate(tab, { mode: selection ? 'selection' : 'page', selectionText: selection ? info.selectionText : '' });
 });
@@ -226,6 +277,16 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
   if (command === 'toggle-notes' || command === 'highlight-selection') {
     if (!tab) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab) notesCommand(tab, command === 'toggle-notes' ? { type: 'kn-toggle' } : { type: 'kn-highlight', color: 'yellow' });
+    return;
+  }
+  if (command === 'record-screen') {
+    if (!tab) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab) openRecord(tab);
+    return;
+  }
+  if (command === 'screenshot-region' || command === 'investigate') {
+    if (!tab) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab) { if (command === 'investigate') openInvestigate(tab, { view: 'entities' }); else startShot(tab, 'region'); }
     return;
   }
   if (command === 'save-page' || command === 'save-video') {
@@ -475,6 +536,15 @@ async function handleMessage(msg, sender) {
       return { ok: true };
     }
 
+    case 'ko-region': await onRegion(msg, sender); return;
+    case 'ko-shot-evidence': {
+      try { return { ok: true, ...(await shotForEvidence(Number(msg.tabId), msg.returnTabId != null ? Number(msg.returnTabId) : null)) }; }
+      catch (e) { return { ok: false, error: e && e.message ? e.message : String(e) }; }
+    }
+    case 'ko-get-headers': {
+      const all = (await chrome.storage.session.get(HEADERS_KEY))[HEADERS_KEY] || {};
+      return { ok: true, record: all[msg.tabId] || null };
+    }
     case 'kr-open-save':
       if (sender.tab) await openSave(sender.tab, { view: ['video', 'image', 'audio'].includes(msg.view) ? msg.view : 'document' });
       return;
@@ -491,6 +561,281 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
   if (changes.serverUrl) stopSession({ notifyTab: true });
 });
 
+
+
+// ---------- Investigate page ----------
+
+const INV_TABS_KEY = 'koInvTabs';
+
+async function openInvestigate(tab, { view = 'entities', q, img, quote, embedded } = {}) {
+  if (!tab || tab.id == null) return;
+  const p = new URLSearchParams({ tab: String(tab.id), view });
+  if (q) p.set('q', String(q).slice(0, 2000));
+  if (img) p.set('img', img);
+  if (embedded) p.set('embedded', '1');
+  if (quote) p.set('quote', String(quote).slice(0, 4000));
+  const url = chrome.runtime.getURL('investigate.html?' + p);
+  const stored = await chrome.storage.session.get(INV_TABS_KEY).catch(() => ({}));
+  const map = stored[INV_TABS_KEY] || {};
+  if (map[tab.id] != null) {
+    try {
+      const existing = await chrome.tabs.get(map[tab.id]);
+      await chrome.tabs.update(existing.id, { url, active: true });
+      if (existing.windowId != null) chrome.windows.update(existing.windowId, { focused: true }).catch(() => {});
+      return;
+    } catch (_) { delete map[tab.id]; }
+  }
+  const created = await chrome.tabs.create({ url, index: tab.index + 1, openerTabId: tab.id, active: true });
+  map[tab.id] = created.id;
+  await chrome.storage.session.set({ [INV_TABS_KEY]: map }).catch(() => {});
+}
+
+chrome.tabs.onRemoved.addListener(async tabId => {
+  const stored = await chrome.storage.session.get(INV_TABS_KEY).catch(() => ({}));
+  const map = stored[INV_TABS_KEY];
+  if (!map) return;
+  let changed = false;
+  for (const [src, inv] of Object.entries(map)) if (Number(src) === tabId || inv === tabId) { delete map[src]; changed = true; }
+  if (changed) await chrome.storage.session.set({ [INV_TABS_KEY]: map }).catch(() => {});
+});
+
+// ---------- screen recording ----------
+// The recorder is an ordinary extension page (getDisplayMedia needs a page, and shows the browser's own picker).
+// One recorder per window is enough: reuse it if it is already open.
+async function openRecord(tab) {
+  const url = chrome.runtime.getURL('record.html' + (tab && tab.id != null ? '?tab=' + tab.id : ''));
+  const stored = await chrome.storage.session.get('koRecTab').catch(() => ({}));
+  if (stored.koRecTab != null) {
+    try { const t = await chrome.tabs.get(stored.koRecTab); await chrome.tabs.update(t.id, { active: true }); if (t.windowId != null) chrome.windows.update(t.windowId, { focused: true }).catch(() => {}); return; } catch (_) {}
+  }
+  const created = await chrome.tabs.create({ url, index: tab ? tab.index + 1 : undefined, active: true });
+  await chrome.storage.session.set({ koRecTab: created.id }).catch(() => {});
+}
+chrome.tabs.onRemoved.addListener(async tabId => { const s = await chrome.storage.session.get('koRecTab').catch(() => ({})); if (s.koRecTab === tabId) chrome.storage.session.remove('koRecTab').catch(() => {}); });
+
+// ---------- screenshots ----------
+// Three ways to take one: the visible part, a dragged area, or the whole page (scroll, capture, stitch).
+// Needs the activeTab grant that clicking the menu / icon / shortcut gives, or the optional "all sites" permission.
+
+const REGION_KEY = 'koRegion';
+let lastCaptureAt = 0;
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function captureTab(windowId) {
+  const wait = KOShot.CAPTURE_GAP_MS - (Date.now() - lastCaptureAt);
+  if (wait > 0) await sleep(wait);
+  lastCaptureAt = Date.now();
+  const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
+  const blob = await (await fetch(dataUrl)).blob();
+  return createImageBitmap(blob);
+}
+
+async function toPngBlob(canvas) { return canvas.convertToBlob({ type: 'image/png' }); }
+
+function pageMetrics() {
+  const de = document.documentElement, b = document.body;
+  return { pageHeight: Math.max(de.scrollHeight, b ? b.scrollHeight : 0, de.offsetHeight), viewHeight: window.innerHeight, viewWidth: window.innerWidth, dpr: window.devicePixelRatio || 1, scrollX: window.scrollX, scrollY: window.scrollY, title: document.title, url: location.href };
+}
+
+// Prepares the page for tiling (instant scrolling, no sticky/fixed elements after the first tile) and moves it.
+function pageScrollTo(y, hideFixed) {
+  if (!document.getElementById('__ko_shot_style')) {
+    const st = document.createElement('style');
+    st.id = '__ko_shot_style';
+    st.textContent = 'html,body{scroll-behavior:auto !important}';
+    document.documentElement.appendChild(st);
+  }
+  if (hideFixed) {
+    let n = 0;
+    for (const el of document.body ? document.body.querySelectorAll('*') : []) {
+      if (++n > 5000) break;
+      if (el.dataset && el.dataset.koHidden) continue;
+      const pos = getComputedStyle(el).position;
+      if (pos === 'fixed' || pos === 'sticky') { el.dataset.koHidden = el.style.visibility || '-'; el.style.setProperty('visibility', 'hidden', 'important'); }
+    }
+  }
+  window.scrollTo({ top: y, left: 0, behavior: 'instant' });
+  return { y: window.scrollY };
+}
+
+function pageRestore(sx, sy) {
+  for (const el of document.querySelectorAll('[data-ko-hidden]')) {
+    const was = el.dataset.koHidden;
+    if (was === '-') el.style.removeProperty('visibility'); else el.style.setProperty('visibility', was);
+    delete el.dataset.koHidden;
+  }
+  const st = document.getElementById('__ko_shot_style');
+  if (st) st.remove();
+  window.scrollTo({ top: sy, left: sx, behavior: 'instant' });
+}
+
+async function inTab(tabId, func, args = []) {
+  const r = await chrome.scripting.executeScript({ target: { tabId }, func, args });
+  return r && r[0] && r[0].result;
+}
+
+// -> { blob, width, height, dpr, truncated, url, title }
+async function captureFullPage(tab) {
+  const m = await inTab(tab.id, pageMetrics);
+  if (!m) throw new Error('Couldn’t read the page size.');
+  let plan, canvas, ctx, scale = m.dpr;
+  try {
+    for (let i = 0; ; i++) {
+      const tile = plan ? plan.tiles[i] : { scrollY: 0 };
+      if (!tile) break;
+      await inTab(tab.id, pageScrollTo, [tile.scrollY, i > 0]);
+      await sleep(260);                          // let lazy images and sticky headers settle
+      const bmp = await captureTab(tab.windowId);
+      if (!plan) {
+        scale = bmp.height / Math.max(1, m.viewHeight);            // the true device scale, scrollbars and all
+        plan = KOShot.planFullPage({ pageHeight: m.pageHeight, viewHeight: m.viewHeight, viewWidth: bmp.width / scale, dpr: scale });
+        canvas = new OffscreenCanvas(bmp.width, plan.height);
+        ctx = canvas.getContext('2d');
+      }
+      const t = plan.tiles[i];
+      ctx.drawImage(bmp, 0, t.srcY, bmp.width, t.h, 0, t.destY, bmp.width, t.h);
+      bmp.close();
+      chrome.action.setBadgeText({ tabId: tab.id, text: Math.min(99, Math.round(100 * (i + 1) / plan.tiles.length)) + '%' }).catch(() => {});
+    }
+  } finally {
+    await inTab(tab.id, pageRestore, [m.scrollX, m.scrollY]).catch(() => {});
+  }
+  return { blob: await toPngBlob(canvas), width: canvas.width, height: canvas.height, dpr: scale, truncated: plan.truncated, shownHeight: plan.shownHeight, pageHeight: plan.pageHeight, url: m.url, title: m.title };
+}
+
+async function captureRegion(tab, rect, dpr) {
+  const bmp = await captureTab(tab.windowId);
+  const k = bmp.width / Math.max(1, (await inTab(tab.id, () => window.innerWidth)) || bmp.width / dpr);
+  const c = KOShot.cropRect(rect, k, bmp.width, bmp.height);
+  if (!c) { bmp.close(); throw new Error('That area was empty.'); }
+  const canvas = new OffscreenCanvas(c.w, c.h);
+  canvas.getContext('2d').drawImage(bmp, c.x, c.y, c.w, c.h, 0, 0, c.w, c.h);
+  bmp.close();
+  return { blob: await toPngBlob(canvas), width: c.w, height: c.h, dpr: k };
+}
+
+async function captureVisible(tab) {
+  const bmp = await captureTab(tab.windowId);
+  const canvas = new OffscreenCanvas(bmp.width, bmp.height);
+  canvas.getContext('2d').drawImage(bmp, 0, 0);
+  const out = { blob: await toPngBlob(canvas), width: bmp.width, height: bmp.height, dpr: 0 };
+  bmp.close();
+  return out;
+}
+
+async function finishShot(tab, shot, mode, opts = {}) {
+  const id = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(36).slice(2);
+  const t = await chrome.tabs.get(tab.id).catch(() => tab);
+  await KOShotStore.put(id, { blob: shot.blob, at: Date.now(), capturedAt: new Date().toISOString(), mode, width: shot.width, height: shot.height, dpr: shot.dpr, truncated: !!shot.truncated, pageHeight: shot.pageHeight || 0, shownHeight: shot.shownHeight || 0, url: shot.url || t.url || '', title: shot.title || t.title || '', sourceTab: tab.id });
+  KOShotStore.sweep().catch(() => {});
+  if (opts.returnId) return id;
+  const url = chrome.runtime.getURL('shot.html?id=' + encodeURIComponent(id));
+  await chrome.tabs.create({ url, index: tab.index + 1, openerTabId: tab.id, active: true });
+  return id;
+}
+
+async function startShot(tab, mode, opts = {}) {
+  if (!tab || tab.id == null) return null;
+  try {
+    clearBadge(tab.id);
+    if (mode === 'region') {
+      await chrome.storage.session.set({ [REGION_KEY]: { tabId: tab.id, windowId: tab.windowId, index: tab.index, at: Date.now() } });
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['shot-select.js'] });
+      return null;                                // the rest happens when the overlay reports a rectangle
+    }
+    const shot = mode === 'full' ? await captureFullPage(tab) : await captureVisible(tab);
+    clearBadge(tab.id);
+    return await finishShot(tab, shot, mode, opts);
+  } catch (e) {
+    flashBadge(tab.id, '!', 'Screenshot failed: ' + (e && e.message || e));
+    console.warn('PageMate screenshot:', e && e.message || e);
+    if (opts.throwErrors) throw e;
+    return null;
+  }
+}
+
+async function onRegion(msg, sender) {
+  const stored = (await chrome.storage.session.get(REGION_KEY))[REGION_KEY];
+  await chrome.storage.session.remove(REGION_KEY);
+  if (!stored || !sender.tab || sender.tab.id !== stored.tabId || msg.cancelled) return;
+  if (Date.now() - stored.at > 10 * 60 * 1000) return;
+  const tab = await chrome.tabs.get(stored.tabId).catch(() => null);
+  if (!tab) return;
+  try {
+    const shot = await captureRegion(tab, msg.rect, msg.dpr);
+    await finishShot(tab, { ...shot, url: tab.url, title: tab.title }, 'region');
+  } catch (e) {
+    flashBadge(tab.id, '!', 'Screenshot failed: ' + (e && e.message || e));
+  }
+}
+
+// Used by the sealed capture: the Save page asks us to photograph its source tab, then gives focus back.
+async function shotForEvidence(tabId, returnTabId) {
+  const tab = await chrome.tabs.get(tabId);
+  const back = returnTabId != null ? await chrome.tabs.get(returnTabId).catch(() => null) : null;
+  await chrome.tabs.update(tabId, { active: true });
+  if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
+  await sleep(450);
+  try {
+    const shot = await captureFullPage(tab);
+    clearBadge(tabId);
+    return { id: await finishShot(tab, shot, 'full', { returnId: true }), truncated: !!shot.truncated, width: shot.width, height: shot.height };
+  } finally {
+    if (back) { await chrome.tabs.update(back.id, { active: true }).catch(() => {}); if (back.windowId != null) chrome.windows.update(back.windowId, { focused: true }).catch(() => {}); }
+  }
+}
+
+// ---------- response headers (memory only) ----------
+// The Investigate "site profile" and sealed captures include the headers the page was served with. They are kept in
+// memory for this browser session, per tab, with cookie values and credentials removed. Turn off in settings.
+
+const HEADERS_KEY = 'koHeaders';
+let recordHeaders = true;
+chrome.storage.sync.get({ recordHeaders: true }).then(r => { recordHeaders = r.recordHeaders !== false; }).catch(() => {});
+chrome.storage.onChanged.addListener((changes, area) => { if (area === 'sync' && changes.recordHeaders) recordHeaders = changes.recordHeaders.newValue !== false; });
+
+let headersQueue = Promise.resolve();
+function updateHeaders(fn) {
+  headersQueue = headersQueue.then(async () => {
+    const all = (await chrome.storage.session.get(HEADERS_KEY))[HEADERS_KEY] || {};
+    if (fn(all) !== false) {
+      // keep the most recent 40 tabs
+      const keys = Object.keys(all);
+      if (keys.length > 40) keys.sort((a, b) => all[a].at - all[b].at).slice(0, keys.length - 40).forEach(k => delete all[k]);
+      await chrome.storage.session.set({ [HEADERS_KEY]: all });
+    }
+  }).catch(() => {});
+  return headersQueue;
+}
+
+chrome.webRequest.onResponseStarted.addListener(details => {
+  if (!recordHeaders || details.tabId < 0 || details.frameId !== 0) return;
+  updateHeaders(all => {
+    all[details.tabId] = { url: details.url, status: details.statusCode, ip: details.ip || '', fromCache: !!details.fromCache, at: Date.now(), headers: KOsint.headerMap(details.responseHeaders) };
+  });
+}, { urls: ['http://*/*', 'https://*/*'], types: ['main_frame'] }, ['responseHeaders']);
+
+chrome.tabs.onRemoved.addListener(tabId => { updateHeaders(all => { if (!all[tabId]) return false; delete all[tabId]; }); });
+
+// ---------- investigation trail (optional) ----------
+// When switched on for a case, each page you finish loading is noted (time, address, title) in this browser,
+// so you can show what you looked at and when. Off by default; needs the optional "tabs" permission.
+
+const TRAIL_LOG = 'ko:trailLog';
+let lastTrail = '';
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete') return;
+  const { 'ko:trail': trail } = await chrome.storage.local.get('ko:trail').catch(() => ({}));
+  if (!trail || !trail.on || !tab || tab.incognito || !/^https?:/i.test(tab.url || '')) return;
+  if (tab.url.startsWith(chrome.runtime.getURL(''))) return;
+  const key = tabId + '|' + tab.url;
+  if (key === lastTrail) return;
+  lastTrail = key;
+  const log = (await chrome.storage.local.get(TRAIL_LOG).catch(() => ({})))[TRAIL_LOG] || [];
+  log.push({ at: new Date().toISOString(), url: tab.url, title: (tab.title || '').slice(0, 200), case: trail.case || '' });
+  await chrome.storage.local.set({ [TRAIL_LOG]: log.slice(-5000) }).catch(() => {});
+});
 
 // ---------- video detection ----------
 // While the user has allowed access to sites, note the addresses of video files

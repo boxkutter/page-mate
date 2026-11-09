@@ -20,7 +20,7 @@ const listFiles = d => { const out = []; const walk = p => { for (const f of fs.
   fs.mkdirSync(dl, { recursive: true });
   const mf = JSON.parse(fs.readFileSync(path.join(ext, 'manifest.json')));
   mf.permissions.push('downloads', 'pageCapture');
-  mf.host_permissions = ['http://*/*', 'https://*/*'];
+  mf.host_permissions = ['<all_urls>'];
   delete mf.optional_permissions; delete mf.optional_host_permissions;
   fs.writeFileSync(path.join(ext, 'manifest.json'), JSON.stringify(mf, null, 2));
   fs.mkdirSync(path.join(profile, 'Default'), { recursive: true });
@@ -242,11 +242,11 @@ const listFiles = d => { const out = []; const walk = p => { for (const f of fs.
     execFileSync('unzip', ['-q', evZip, '-d', work]);
     const folder = path.join(work, fs.readdirSync(work)[0]);
     const names = fs.readdirSync(folder).sort();
-    check('package contents: capture, text, notes, manifest, sums, custody, readme', ['SHA256SUMS', 'README.txt', 'capture.mhtml', 'chain-of-custody.md', 'manifest.json', 'notes.json', 'notes.md', 'page-text.txt'].every(n => names.includes(n)), names.join(', '));
+    check('package contents: capture, text, notes, manifest, sums, custody, readme', ['SHA256SUMS', 'README.txt', 'capture.mhtml', 'chain-of-custody.md', 'manifest.json', 'notes.json', 'notes.md', 'page-text.txt', 'page-details.json', 'headers.json', 'entities.csv', 'screenshot.png'].every(n => names.includes(n)), names.join(', '));
     const ver = spawnSync('sha256sum', ['-c', 'SHA256SUMS'], { cwd: folder, encoding: 'utf8' });
-    check('`sha256sum -c SHA256SUMS` verifies every file', ver.status === 0 && (ver.stdout.match(/: OK/g) || []).length === 7, ver.stdout.replace(/\n/g, ' | '));
+    check('`sha256sum -c SHA256SUMS` verifies every file', ver.status === 0 && (ver.stdout.match(/: OK/g) || []).length === names.length - 1 && !/FAILED/.test(ver.stdout), ver.stdout.replace(/\n/g, ' | '));
     const manifest = JSON.parse(fs.readFileSync(path.join(folder, 'manifest.json'), 'utf8'));
-    check('manifest: case, examiner, UTC time, url, tool version, highlights', manifest.case === 'Harmony II / Exam 2' && manifest.captured_by === 'Test Examiner' && /Z$/.test(manifest.captured_at_utc) && manifest.url === site.base + '/article' && manifest.tool_version === '1.6.0' && manifest.highlights_in_notes === 4 && manifest.examiner_note === 'Found via course page.');
+    check('manifest: case, examiner, UTC time, url, tool version, highlights', manifest.case === 'Harmony II / Exam 2' && manifest.captured_by === 'Test Examiner' && /Z$/.test(manifest.captured_at_utc) && manifest.url === site.base + '/article' && manifest.tool_version === require('../package.json').version && manifest.highlights_in_notes === 4 && manifest.examiner_note === 'Found via course page.');
     const mh = fs.readFileSync(path.join(folder, 'capture.mhtml'), 'utf8');
     check('capture.mhtml is a real page snapshot with the page content', /MIME-Version/i.test(mh.slice(0, 600)) && mh.includes('borrowing chords') || mh.includes('Modal Interchange'), 'size ' + mh.length);
     const shownHash = await save.$eval('#capHash', e => e.textContent);

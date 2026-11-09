@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Record screen</title>
+<style>
+  :root { --bg:#f4f7f6; --card:#fff; --ink:#15201f; --muted:#5d6e6c; --line:#d8e1e0; --accent:#1d7874; --accent-hover:#24918c; --ok:#1f7a4a; --err:#b33b2e; --field:#fbfcfc; --warn-bg:#fff6e0; --warn-line:#ecd48f; --rec:#d6336c; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1615; --card:#16201f; --ink:#e8efee; --muted:#9fb3b1; --line:#2c3b3a; --accent:#3fbfb5; --accent-hover:#57d0c6; --ok:#6fd39b; --err:#f08a7d; --field:#111a19; --warn-bg:#2b2412; --warn-line:#5b4d1f; --rec:#ff6b9a; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:1000px; margin:0 auto; padding:22px 20px 60px; }
+  h1 { font-size:22px; margin:0 0 2px; } h2 { font-size:13px; margin:0 0 10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .source { color:var(--muted); margin:0 0 14px; font-size:13px; }
+  .layout { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:16px; align-items:start; }
+  @media (max-width:900px) { .layout { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:14px; }
+  button { font:inherit; font-weight:600; border:0; border-radius:10px; padding:9px 16px; cursor:pointer; background:var(--accent); color:#fff; }
+  @media (prefers-color-scheme: dark) { button { color:#0d1514; } }
+  button:hover { background:var(--accent-hover); }
+  button.rec { background:var(--rec); } button.ghost { background:transparent; color:var(--accent); border:1px solid var(--line); } button.ghost:hover { background:var(--field); }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .field { margin:0 0 10px; } .field > label { display:block; font-weight:600; font-size:13px; margin-bottom:3px; }
+  input[type=text], select, textarea { font:inherit; color:var(--ink); background:var(--field); border:1px solid var(--line); border-radius:9px; padding:6px 9px; width:100%; }
+  label.check { display:flex; gap:8px; align-items:flex-start; font-size:14px; margin:5px 0; cursor:pointer; }
+  label.check input { margin-top:4px; accent-color:var(--accent); } small, .hint { color:var(--muted); font-size:12.5px; }
+  .status { margin-top:8px; font-size:13px; min-height:1.3em; color:var(--muted); overflow-wrap:anywhere; } .status.ok { color:var(--ok); } .status.err { color:var(--err); }
+  #clock { font:600 44px/1.1 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.02em; }
+  .dot { display:inline-block; width:14px; height:14px; border-radius:50%; background:var(--rec); margin-right:8px; vertical-align:middle; animation:blink 1.2s infinite; }
+  .dot.paused { animation:none; background:var(--muted); } @keyframes blink { 50% { opacity:.25; } }
+  video { width:100%; max-height:60vh; background:#000; border-radius:10px; }
+  table { border-collapse:collapse; width:100%; font-size:13px; } th, td { text-align:left; padding:3px 6px 3px 0; vertical-align:top; overflow-wrap:anywhere; } th { color:var(--muted); font-weight:600; white-space:nowrap; }
+  .mono { font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .warn { background:var(--warn-bg); border:1px solid var(--warn-line); border-radius:10px; padding:8px 12px; font-size:13.5px; margin-bottom:12px; }
+  #count { font:700 90px/1 system-ui; text-align:center; color:var(--rec); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Record screen</h1>
+  <p class="source" id="source">Records your screen, a window or a browser tab to a video file, in your browser. Nothing is uploaded.</p>
+  <div class="layout">
+    <div>
+      <div class="card" id="stageCard">
+        <div id="idle">
+          <p style="margin-top:0">Press <b>Start recording</b>. Your browser will ask what to share: a whole screen, one window or one tab. Pick a <b>tab</b> to also capture its sound.</p>
+          <div class="row"><button class="rec" id="start">● Start recording</button><span class="hint" id="startHint"></span></div>
+        </div>
+        <div id="counting" hidden><div id="count">3</div><p class="hint" style="text-align:center">Get ready… <button class="ghost" id="cancelCount" style="margin-left:8px">Cancel</button></p></div>
+        <div id="live" hidden>
+          <div class="row" style="justify-content:space-between"><div><span class="dot" id="dot"></span><span id="clock">0:00</span></div><div class="hint" id="liveSize"></div></div>
+          <div class="row" style="margin-top:10px"><button id="pause" class="ghost">Pause</button><button id="stop" class="rec">■ Stop</button></div>
+          <p class="hint">You can switch to the window or tab you are recording; this page keeps going in the background. To stop, return here, or use the browser’s “Stop sharing” bar. Closing this tab discards the recording.</p>
+        </div>
+        <div id="done" hidden>
+          <video id="player" controls></video>
+          <div class="row" style="margin-top:10px"><button id="save">Save video</button><button class="ghost" id="again">Record again</button><button class="ghost" id="discard">Discard</button></div>
+        </div>
+        <div class="status" id="status" role="status"></div>
+      </div>
+      <div class="card" id="infoCard" hidden><h2>This recording</h2><table id="info"></table></div>
+    </div>
+    <aside>
+      <div class="card" id="optCard">
+        <h2>Options</h2>
+        <label class="check"><input type="checkbox" id="sysAudio" checked><span>Include screen / tab sound<small>Offered only when you share a tab (and on some systems a whole screen).</small></span></label>
+        <label class="check"><input type="checkbox" id="mic"><span>Include my microphone<small>The browser asks for permission.</small></span></label>
+        <label class="check"><input type="checkbox" id="countdown" checked><span>3-second countdown</span></label>
+        <div class="field"><label for="fps">Smoothness</label><select id="fps"><option value="15">15 frames/s (smaller)</option><option value="30" selected>30 frames/s</option><option value="60">60 frames/s</option></select></div>
+        <div class="field"><label for="quality">Quality</label><select id="quality"><option value="">Automatic</option><option value="low">Low (about 1 Mbit/s)</option><option value="medium">Medium (2.5)</option><option value="high">High (5)</option><option value="max">Highest (8)</option></select></div>
+        <div class="field"><label for="format">File type</label><select id="format"><option value="webm">WebM (most reliable)</option><option value="mp4">MP4 (if your browser can)</option></select></div>
+      </div>
+      <div class="card" id="sealCard" hidden>
+        <h2>Seal as evidence</h2>
+        <div class="field"><label for="case">Case / matter</label><input type="text" id="case" list="cases" autocomplete="off"><datalist id="cases"></datalist></div>
+        <div class="field"><label for="by">Recorded by</label><input type="text" id="by"></div>
+        <div class="field"><label for="note">Note (optional)</label><textarea id="note" rows="2"></textarea></div>
+        <label class="check"><input type="checkbox" id="sign"><span>Sign with this browser’s key</span></label>
+        <label class="check"><input type="checkbox" id="stamp"><span>Add a trusted timestamp<br><small>sends only the file fingerprint</small></span></label>
+        <div class="field" id="tsaRow" hidden><select id="tsa"></select><input type="text" id="tsaCustom" placeholder="https://your-timestamp-server/…" hidden style="margin-top:6px"></div>
+        <button id="seal" style="width:100%">Seal and save .zip</button>
+        <div class="status" id="sealStatus" role="status"></div>
+        <p class="hint">The package holds the recording exactly as made, a record of when it started and stopped, how long, what was shared and whether sound was on, plus the SHA-256 manifest and chain of custody. Large recordings make large packages.</p>
+      </div>
+    </aside>
+  </div>
+</main>
+<script src="common.js"></script>
+<script src="osint-core.js"></script>
+<script src="record-core.js"></script>
+<script src="zip.js"></script>
+<script src="evidence.js"></script>
+<script src="trust.js"></script>
+<script src="seal.js"></script>
+<script src="record.js"></script>
+</body>
+</html>

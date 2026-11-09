@@ -15,6 +15,20 @@
     'The capture is a snapshot of the page as this browser rendered it at that moment. Content that loads later, requires interaction, or differs per visitor may not be included.'
   ];
 
+  // x: { signed, keyFingerprint, timestamp: { tsa, genTime } | null, timestampFailed: 'reason' | null }
+  function limitsFor(x) {
+    if (!x || (!x.signed && !x.timestamp)) return LIMITS.slice();
+    const out = [];
+    out.push(x.timestamp
+      ? 'The “captured at” time in this record is read from the computer’s clock. A separate trusted timestamp (timestamp.tsr) from ' + (x.timestamp.tsa || 'the chosen authority') + ' says the fingerprint of manifest.json existed at ' + (x.timestamp.genTime || 'the time shown in it') + '. It shows the manifest is no newer than that; it does not show the page looked this way earlier.'
+      : LIMITS[0] + (x.timestampFailed ? ' A trusted timestamp was requested but could not be obtained (' + x.timestampFailed + ').' : ''));
+    out.push(x.signed
+      ? 'manifest.json is signed with a key kept in the browser that made the capture (fingerprint ' + (x.keyFingerprint || '') + '). The signature shows the manifest has not changed since and that it came from whoever holds that key. It does not say who that is: record the fingerprint with the person or system it belongs to. Files other than the manifest are covered through their hashes in it.'
+      : LIMITS[1]);
+    out.push(LIMITS[2]);
+    return out;
+  }
+
   async function sha256Hex(data) {
     let bytes;
     if (typeof data === 'string') bytes = new TextEncoder().encode(data);
@@ -43,8 +57,9 @@
   }
 
   // info: { toolVersion, case, capturedBy, capturedAt: Date, url, title, userAgent, highlights, examinerNote }
-  function buildManifest(info, described) {
-    return {
+  // x (optional): see limitsFor, plus { requested: { signature: bool, timestamp: 'https://…' | null } }
+  function buildManifest(info, described, x) {
+    const m = {
       format: 'kokoro-evidence',
       version: 1,
       tool: 'PageMate',
@@ -59,8 +74,11 @@
       highlights_in_notes: info.highlights || 0,
       examiner_note: info.examinerNote || '',
       files: described,
-      limitations: LIMITS
+      limitations: limitsFor(x)
     };
+    if (info.extra && Object.keys(info.extra).length) m.extra = info.extra;
+    if (x && x.requested && (x.requested.signature || x.requested.timestamp)) m.integrity_requested = x.requested;
+    return m;
   }
 
   // Standard `sha256sum` format: "<hex>  <name>". The manifest line is included so one command checks everything.
@@ -70,7 +88,8 @@
 
   const mdCell = s => String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
 
-  function custodyMarkdown(info, described, manifestSha256) {
+  // x (optional): same object as limitsFor
+  function custodyMarkdown(info, described, manifestSha256, x) {
     const L = ['# Chain of custody — web page capture', ''];
     L.push('| | |', '|---|---|');
     L.push('| **Case** | ' + mdCell(info.case || '(none)') + ' |');
@@ -89,7 +108,22 @@
       'Record that value somewhere independent of this package (an email to yourself, a case-management system, a notary). If it matches, the manifest — and through it every file above — is unchanged.', '');
     L.push('## How to verify', '', 'In a terminal, inside the unzipped folder:', '', '```', 'sha256sum -c SHA256SUMS', '```', '',
       'Every line should say `OK`. (On macOS use `shasum -a 256 -c SHA256SUMS`; on Windows PowerShell use `Get-FileHash <file>` and compare.)', '');
-    L.push('## Limits of this record', '', ...LIMITS.map(l => '- ' + l), '');
+    if (x && x.signed) {
+      L.push('### Signature', '', 'Signer key fingerprint (SHA-256 of the public key): `' + (x.keyFingerprint || '') + '`', '', '```', 'openssl dgst -sha256 -verify signer-public-key.pem -signature manifest.sig manifest.json', '```', '',
+        'It should print `Verified OK`. Compare the fingerprint with one you got from the signer by another route: `openssl pkey -pubin -in signer-public-key.pem -outform DER | sha256sum`.', '');
+    }
+    if (x && x.timestamp) {
+      L.push('### Trusted timestamp (RFC 3161)', '', '- Authority: ' + mdCell(x.timestamp.tsa || ''), '- Time stated by the authority (UTC): **' + (x.timestamp.genTime || '') + '**', '- Only the SHA-256 of `manifest.json` was sent to the authority; the page was not.', '',
+        'To check it you need the authority’s root certificate from its own website (its answer carries the signing certificate):', '', '```',
+        'openssl ts -verify -data manifest.json -in timestamp.tsr -CAfile <authority-root.pem>', '```', '',
+        'It should print `Verification: OK`. If it complains about the certificate chain, add `-untrusted <intermediates.pem>`. `timestamp.tsq` is the request that was sent.', '');
+    } else if (x && x.timestampFailed) {
+      L.push('### Trusted timestamp', '', 'One was requested but could not be obtained: ' + mdCell(x.timestampFailed), '');
+    }
+    if (info.extra && info.extra.archives && info.extra.archives.length) {
+      L.push('## Public archive copies', '', ...info.extra.archives.map(a => '- ' + mdCell(a.service) + ': ' + mdCell(a.url) + (a.at ? ' (' + a.at + ')' : '')), '');
+    }
+    L.push('## Limits of this record', '', ...limitsFor(x).map(l => '- ' + l), '');
     return L.join('\n');
   }
 
@@ -104,7 +138,7 @@
     return head.join(',') + '\n' + rows.map(r => [r.at, r.case, r.url, r.title, r.manifestSha256, r.package].map(csvCell).join(',')).join('\n') + '\n';
   }
 
-  const api = { LIMITS, sha256Hex, describeFiles, utcStamp, offsetText, buildManifest, sumsFile, custodyMarkdown, logRow, logCsv };
+  const api = { LIMITS, limitsFor, sha256Hex, describeFiles, utcStamp, offsetText, buildManifest, sumsFile, custodyMarkdown, logRow, logCsv };
   root.KNEvidence = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);

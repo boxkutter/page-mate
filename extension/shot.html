@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Screenshot</title>
+<style>
+  :root { --bg:#f4f7f6; --card:#fff; --ink:#15201f; --muted:#5d6e6c; --line:#d8e1e0; --accent:#1d7874; --accent-hover:#24918c; --ok:#1f7a4a; --err:#b33b2e; --field:#fbfcfc; --warn-bg:#fff6e0; --warn-line:#ecd48f; --chip:#e7f0ef; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f1615; --card:#16201f; --ink:#e8efee; --muted:#9fb3b1; --line:#2c3b3a; --accent:#3fbfb5; --accent-hover:#57d0c6; --ok:#6fd39b; --err:#f08a7d; --field:#111a19; --warn-bg:#2b2412; --warn-line:#5b4d1f; --chip:#1d2c2b; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:1280px; margin:0 auto; padding:20px 20px 60px; }
+  h1 { font-size:22px; margin:0 0 2px; }
+  h2 { font-size:13px; margin:0 0 10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .source { color:var(--muted); margin:0 0 14px; font-size:13px; overflow-wrap:anywhere; }
+  .layout { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:16px; align-items:start; }
+  @media (max-width:900px) { .layout { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:14px; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; }
+  .toolbar .sep { width:1px; height:24px; background:var(--line); margin:0 4px; }
+  button { font:inherit; font-weight:600; border:0; border-radius:10px; padding:7px 13px; cursor:pointer; background:var(--accent); color:#fff; }
+  @media (prefers-color-scheme: dark) { button { color:#0d1514; } }
+  button:hover { background:var(--accent-hover); }
+  button.ghost { background:transparent; color:var(--accent); border:1px solid var(--line); }
+  button.ghost:hover { background:var(--field); }
+  button.tool[aria-pressed="true"] { background:var(--chip); color:var(--ink); border-color:var(--accent); }
+  button.small { padding:4px 9px; font-size:13px; }
+  button:disabled { opacity:.5; cursor:default; }
+  .stage { background:#dfe6e5; border:1px solid var(--line); border-radius:12px; padding:12px; max-height:calc(100vh - 220px); overflow:auto; }
+  @media (prefers-color-scheme: dark) { .stage { background:#0b100f; } }
+  #cv { display:block; max-width:none; cursor:crosshair; box-shadow:0 2px 14px rgba(0,0,0,.25); background:#fff; touch-action:none; }
+  .status { margin-top:8px; font-size:13px; min-height:1.3em; color:var(--muted); overflow-wrap:anywhere; }
+  .status.ok { color:var(--ok); } .status.err { color:var(--err); }
+  .hint { color:var(--muted); font-size:12.5px; margin:6px 0 0; }
+  .field { margin:0 0 10px; } .field > label { display:block; font-weight:600; font-size:13px; margin-bottom:3px; }
+  input[type=text], select, textarea { font:inherit; color:var(--ink); background:var(--field); border:1px solid var(--line); border-radius:9px; padding:6px 9px; width:100%; }
+  label.check { display:flex; gap:8px; align-items:flex-start; font-size:14px; margin:4px 0; cursor:pointer; }
+  label.check input { margin-top:4px; accent-color:var(--accent); }
+  .meta td, .meta th { font-size:12.5px; text-align:left; padding:2px 6px 2px 0; vertical-align:top; overflow-wrap:anywhere; }
+  .meta th { color:var(--muted); font-weight:600; white-space:nowrap; }
+  .mono { font:12px ui-monospace,SFMono-Regular,Menlo,monospace; overflow-wrap:anywhere; }
+  .warn { background:var(--warn-bg); border:1px solid var(--warn-line); border-radius:10px; padding:8px 12px; font-size:13.5px; margin-bottom:12px; }
+  a.pill { display:inline-block; margin:3px 5px 3px 0; padding:3px 10px; border:1px solid var(--line); border-radius:999px; color:var(--accent); text-decoration:none; font-size:13px; background:var(--field); cursor:pointer; }
+  input[type=color] { width:34px; height:30px; padding:0; border:1px solid var(--line); border-radius:8px; background:none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Screenshot</h1>
+  <p class="source" id="source">Loading…</p>
+  <div class="warn" id="trunc" hidden></div>
+  <div class="layout">
+    <div>
+      <div class="card">
+        <div class="toolbar" id="tools" role="toolbar" aria-label="Annotation tools">
+          <button class="ghost tool small" data-tool="none" aria-pressed="true" title="Look only">View</button>
+          <button class="ghost tool small" data-tool="box" aria-pressed="false" title="Outline an area">Box</button>
+          <button class="ghost tool small" data-tool="arrow" aria-pressed="false" title="Point at something">Arrow</button>
+          <button class="ghost tool small" data-tool="highlight" aria-pressed="false" title="Translucent highlighter">Highlight</button>
+          <button class="ghost tool small" data-tool="text" aria-pressed="false" title="Click to place text">Text</button>
+          <button class="ghost tool small" data-tool="redact" aria-pressed="false" title="Cover with solid black">Redact</button>
+          <button class="ghost tool small" data-tool="pixelate" aria-pressed="false" title="Pixelate an area">Pixelate</button>
+          <button class="ghost tool small" data-tool="crop" aria-pressed="false" title="Drag the part to keep">Crop</button>
+          <span class="sep"></span>
+          <input type="color" id="color" value="#e03131" title="Colour for box, arrow and text" aria-label="Colour">
+          <button class="ghost small" id="undo" disabled>Undo</button>
+          <button class="ghost small" id="reset" disabled>Reset</button>
+          <span class="sep"></span>
+          <label class="hint" style="margin:0">Zoom <select id="zoom" style="width:auto"><option value="fit">Fit</option><option value="1">100%</option><option value="2">200%</option></select></label>
+        </div>
+        <div class="stage" id="stage"><canvas id="cv" width="10" height="10"></canvas></div>
+        <div class="status" id="status" role="status"></div>
+      </div>
+    </div>
+    <aside>
+      <div class="card">
+        <h2>Keep it</h2>
+        <div class="toolbar">
+          <button id="savePng">Save PNG</button>
+          <button class="ghost" id="saveJpg" title="Smaller file, softer text">Save JPEG</button>
+          <button class="ghost" id="copyImg">Copy image</button>
+        </div>
+        <table class="meta" id="meta"></table>
+        <p class="hint" id="redactNote" hidden>Redactions and pixelation are burned into saved and copied images. The original is only kept if you seal it as evidence (below).</p>
+      </div>
+      <div class="card">
+        <h2>Share</h2>
+        <div class="toolbar"><button class="ghost" id="nativeShare" hidden>Share image…</button></div>
+        <div id="social"></div>
+        <p class="hint">Social sites can’t receive a picture from a link. The buttons copy the picture to your clipboard, then open that site’s post window with the page link filled in: paste the image into the post (Ctrl+V). Check what the picture shows before you post it.</p>
+      </div>
+      <div class="card">
+        <h2>Seal as evidence</h2>
+        <div class="field"><label for="case">Case / matter</label><input type="text" id="case" list="cases" autocomplete="off"><datalist id="cases"></datalist></div>
+        <div class="field"><label for="by">Captured by</label><input type="text" id="by"></div>
+        <div class="field"><label for="note">Note (optional)</label><textarea id="note" rows="2"></textarea></div>
+        <label class="check"><input type="checkbox" id="sign"><span>Sign it with this browser’s key<br><small class="hint">shows it came from this browser and is unchanged</small></span></label>
+        <label class="check"><input type="checkbox" id="stamp"><span>Add a trusted timestamp<br><small class="hint">sends only the file fingerprint to the authority below</small></span></label>
+        <div class="field" id="tsaRow" hidden><select id="tsa"></select><input type="text" id="tsaCustom" placeholder="https://your-timestamp-server/…" hidden style="margin-top:6px"></div>
+        <button id="seal" style="width:100%">Seal and save .zip</button>
+        <div class="status" id="sealStatus" role="status"></div>
+        <p class="hint">The sealed package holds the untouched screenshot, a version with your marks if you made any, the page address, a SHA-256 manifest and a chain-of-custody record. The time is your computer’s clock unless you add a trusted timestamp.</p>
+      </div>
+    </aside>
+  </div>
+</main>
+<script src="common.js"></script>
+<script src="osint-core.js"></script>
+<script src="shot-core.js"></script>
+<script src="shot-store.js"></script>
+<script src="zip.js"></script>
+<script src="evidence.js"></script>
+<script src="trust.js"></script>
+<script src="seal.js"></script>
+<script src="shot.js"></script>
+</body>
+</html>

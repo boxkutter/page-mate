@@ -1272,6 +1272,65 @@
         if ($('capNotes').disabled) $('capNotes').checked = false;
       }
     } catch (_) {}
+    try { await prepareCaptureExtras(); } catch (_) {}
+  }
+
+  const tsaChoice = () => ($('capTsa').value || $('capTsaCustom').value.trim());
+
+  async function prepareCaptureExtras() {
+    const prefs = await chrome.storage.sync.get({ capSign: false, capTimestamp: false, tsaUrl: 'https://freetsa.org/tsr', capShot: true });
+    $('capSign').checked = !!prefs.capSign; $('capStamp').checked = !!prefs.capTimestamp; $('capShot').checked = prefs.capShot !== false;
+    const sel = $('capTsa');
+    sel.replaceChildren(...KOTrust.TSA_PRESETS.map(t => { const o = el('option'); o.value = t.url; o.textContent = t.name; return o; }));
+    const other = el('option'); other.value = ''; other.textContent = 'Another server…'; sel.append(other);
+    const known = KOTrust.TSA_PRESETS.some(t => t.url === prefs.tsaUrl);
+    sel.value = known ? prefs.tsaUrl : ''; $('capTsaCustom').value = known ? '' : prefs.tsaUrl;
+    const sync = () => { $('capTsaRow').hidden = !$('capStamp').checked; $('capTsaCustom').hidden = sel.value !== ''; };
+    $('capStamp').addEventListener('change', sync); sel.addEventListener('change', sync); sync();
+    // trail for the case
+    const showTrail = async () => {
+      const log = (await chrome.storage.local.get('ko:trailLog'))['ko:trailLog'] || [];
+      const c = $('capCase').value.trim();
+      const rows = c ? log.filter(r => r.case === c) : [];
+      $('capTrailRow').hidden = !rows.length;
+      $('capTrailInfo').textContent = rows.length + ' page' + (rows.length === 1 ? '' : 's') + ' noted for “' + c + '”';
+    };
+    $('capCase').addEventListener('input', showTrail); showTrail();
+  }
+
+  // A permission request has to come straight from the click, and asking once is friendlier than asking three times.
+  async function requestCapturePermissions({ stamp, shot }) {
+    const permissions = [], origins = [];
+    if (!(await chrome.permissions.contains({ permissions: ['pageCapture'] }).catch(() => false))) permissions.push('pageCapture');
+    if (stamp) { const o = new URL(stamp).origin + '/*'; if (!(await chrome.permissions.contains({ origins: [o] }).catch(() => false))) origins.push(o); }
+    // a screenshot of a tab that is not the one the user just clicked on needs "all sites" in the form <all_urls>
+    if (shot && !(await chrome.permissions.contains({ origins: ['<all_urls>'] }).catch(() => false))) origins.push('<all_urls>');
+    if (!permissions.length && !origins.length) return true;
+    return chrome.permissions.request({ ...(permissions.length ? { permissions } : {}), ...(origins.length ? { origins } : {}) });
+  }
+
+  async function pageDetails() {
+    const r = await chrome.scripting.executeScript({ target: { tabId }, func: KOPage.collect, args: [{}] });
+    const page = r && r[0] && r[0].result;
+    if (!page) throw new Error('empty');
+    let hdr = null;
+    try { const resp = await chrome.runtime.sendMessage({ type: 'ko-get-headers', tabId }); hdr = resp && resp.record; } catch (_) {}
+    if (hdr && hdr.url !== page.url) hdr = null;   // it is a different page now
+    const K = KOsint;
+    const headers = hdr ? hdr.headers : {};
+    const ent = K.extract([page.title, page.text, Object.values(page.metas).join('\n'), page.comments.join('\n'), page.hidden.map(x => x.text).join('\n')].join('\n'), { links: page.links });
+    const ids = K.extract(page.inline + '\n' + page.scripts.join('\n') + '\n' + page.resources.join('\n')).analyticsId;
+    if (ids) ent.analyticsId = ids;
+    const details = {
+      url: page.url, canonical: page.canonical, title: page.title, language: page.lang, charset: page.charset, referrer: page.referrer, captured_at_utc: page.at,
+      response: hdr ? { status: hdr.status, server_ip: hdr.ip, from_cache: hdr.fromCache } : null,
+      technologies: K.detectTech({ headers, metas: page.metas, scripts: page.scripts, links: page.styles }),
+      security_headers: hdr ? K.securityHeaders(headers) : null,
+      other_sites_loaded_from: K.externalHosts(page.url, [...page.scripts, ...page.styles, ...page.frames, ...page.images.map(i => i.src), ...page.resources]),
+      metadata: page.metas, structured_data: page.jsonld, forms: page.forms, password_fields: page.passwordFields, cookie_names_readable_by_page: page.cookieNames,
+      hidden_text: page.hidden, html_comments: page.comments, link_count: page.links.length, image_count: page.images.length
+    };
+    return { details, headers: hdr ? { url: hdr.url, status: hdr.status, server_ip: hdr.ip, note: 'Cookie values and credentials are removed.', headers } : null, entitiesCsv: K.entitiesCsv(ent, { url: page.url, title: page.title }), page };
   }
 
   async function sealCapture() {
@@ -1279,13 +1338,12 @@
     $('capGo').disabled = true;
     $('capResult').hidden = true;
     try {
-      let have = false;
-      try { have = await chrome.permissions.contains({ permissions: ['pageCapture'] }); } catch (_) {}
-      if (!have) {
-        // Must be requested straight from the click.
-        const ok = await chrome.permissions.request({ permissions: ['pageCapture'] });
-        if (!ok) throw new Error('Permission to capture pages was not given.');
-      }
+      const wantStamp = $('capStamp').checked, wantSign = $('capSign').checked, wantShot = $('capShot').checked, wantDetails = $('capDetails').checked;
+      const tsa = wantStamp ? tsaChoice() : null;
+      if (wantStamp && !/^https?:\/\//i.test(tsa)) throw new Error('Enter the timestamp server’s address.');
+      const granted = await requestCapturePermissions({ stamp: tsa, shot: wantShot });
+      if (!granted) throw new Error('Permission was not given. Untick the options that need it, or allow it when asked.');
+      const warnings = [];
       status('Capturing the page…');
       const when = new Date();
       const mhtml = await chrome.pageCapture.saveAsMHTML({ tabId });
@@ -1297,7 +1355,7 @@
       const caseName = $('capCase').value.trim().slice(0, 120);
       const by = $('capBy').value.trim().slice(0, 120);
       const note = $('capNote').value.trim().slice(0, 4000);
-      try { chrome.storage.sync.set({ capBy: by }); } catch (_) {}
+      try { chrome.storage.sync.set({ capBy: by, capSign: wantSign, capTimestamp: wantStamp, capShot: wantShot, ...(tsa ? { tsaUrl: tsa } : {}) }); } catch (_) {}
 
       const files = [
         { name: 'capture.mhtml', data: mhtml, description: 'The page as the browser had it (MHTML single file)' },
@@ -1314,37 +1372,55 @@
           files.push({ name: 'notes.json', data: JSON.stringify({ format: 'kokoro-notes', version: 1, exported: when.toISOString(), pages: [rec] }, null, 2), description: 'My highlights and notes (backup format)' });
         }
       }
-      status('Fingerprinting the files…');
-      const described = await KNEvidence.describeFiles(files);
-      const info = { toolVersion: chrome.runtime.getManifest().version, case: caseName, capturedBy: by, capturedAt: when, url: model.url, title: model.title, userAgent: navigator.userAgent, highlights, examinerNote: note };
-      const manifestJson = JSON.stringify(KNEvidence.buildManifest(info, described), null, 2) + '\n';
-      const manifestHash = await KNEvidence.sha256Hex(manifestJson);
-      const custody = KNEvidence.custodyMarkdown(info, described, manifestHash);
-      const readme = 'This is a sealed web page capture made with PageMate.\n\nTo check that nothing has changed since it was sealed, unzip it and run, inside the folder:\n\n    sha256sum -c SHA256SUMS\n\nEvery line should say OK. Read chain-of-custody.md for the details and the limits of this record.\n';
-      const sums = KNEvidence.sumsFile([
-        { name: 'manifest.json', sha256: manifestHash },
-        ...described,
-        { name: 'chain-of-custody.md', sha256: await KNEvidence.sha256Hex(custody) },
-        { name: 'README.txt', sha256: await KNEvidence.sha256Hex(readme) }
-      ]);
+      if (wantDetails) {
+        status('Reading the page’s details…');
+        try {
+          const d = await pageDetails();
+          files.push({ name: 'page-details.json', data: JSON.stringify(d.details, null, 2) + '\n', description: 'Metadata, technologies, other sites loaded from, hidden text, comments' });
+          if (d.headers) files.push({ name: 'headers.json', data: JSON.stringify(d.headers, null, 2) + '\n', description: 'Response headers the page was served with (cookie values removed)' });
+          else warnings.push('No response headers were noted for this page (reload it with access to sites allowed to get them).');
+          files.push({ name: 'entities.csv', data: d.entitiesCsv, description: 'Emails, phone numbers, domains, IPs, handles, hashes… found in the page' });
+        } catch (e) { warnings.push('Page details could not be read (' + errText(e) + ').'); }
+      }
+      if (wantShot) {
+        status('Taking a full-page screenshot…');
+        try {
+          const r = await chrome.runtime.sendMessage({ type: 'ko-shot-evidence', tabId, returnTabId: (await chrome.tabs.getCurrent()).id });
+          if (!r || !r.ok) throw new Error((r && r.error) || 'no answer');
+          const rec = await KOShotStore.get(r.id);
+          await KOShotStore.del(r.id).catch(() => {});
+          if (!rec || !rec.blob) throw new Error('the picture was lost');
+          files.push({ name: 'screenshot.png', data: rec.blob, description: 'Full-page screenshot as the browser showed it' + (r.truncated ? ' (cut off: the page is taller than a browser can draw)' : '') });
+          if (r.truncated) warnings.push('The page is taller than a browser can draw in one image, so the screenshot is cut off.');
+        } catch (e) { warnings.push('No screenshot (' + errText(e) + ').'); }
+      }
+      const archives = ((await chrome.storage.local.get('ko:archives'))['ko:archives'] || {})[model.url.split('#')[0]] || [];
+      if ($('capTrail') && $('capTrail').checked && !$('capTrailRow').hidden) {
+        const log = (await chrome.storage.local.get('ko:trailLog'))['ko:trailLog'] || [];
+        const rows = log.filter(r => r.case === caseName);
+        const cell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+        files.push({ name: 'trail.csv', data: 'visited_at_utc,case,url,title\n' + rows.map(r => [r.at, r.case, r.url, r.title].map(cell).join(',')).join('\n') + '\n', description: 'Pages visited for this case (the trail kept in this browser)' });
+      }
+      const info = { toolVersion: chrome.runtime.getManifest().version, case: caseName, capturedBy: by, capturedAt: when, url: model.url, title: model.title, userAgent: navigator.userAgent, highlights, examinerNote: note, extra: { kind: 'page', ...(archives.length ? { archives } : {}) } };
+      const key = wantSign ? await KNSeal.getSigningKey(true) : null;
+      const res = await KNSeal.build({ files, info, signing: key, tsaUrl: tsa, onStatus: status });
+      warnings.push(...res.warnings);
 
       const stamp = KNEvidence.utcStamp(when);
       const base = M.sanitizeName('Evidence – ' + (model.title || 'page') + ' – ' + stamp, 'Evidence', 110);
-      const entries = [...files.map(f => ({ name: f.name, data: f.data })), { name: 'manifest.json', data: manifestJson }, { name: 'chain-of-custody.md', data: custody },
-        { name: 'README.txt', data: readme }, { name: 'SHA256SUMS', data: sums }].map(e => ({ ...e, name: base + '/' + e.name }));
       status('Packing the .zip…');
-      const zip = await KRZip.createZip(entries, { date: when });
+      const zip = await KNSeal.zipEntries(base, res.entries, when);
       const dir = M.sanitizePath([$('folder').value.trim() || 'PageMate Archive', 'Evidence']);
       await M.saveBlob(zip, dir + '/' + base + '.zip', { useDownloads: state.downloads });
 
       // running log, kept in this browser
       const log = (await chrome.storage.local.get('kn:seals'))['kn:seals'] || [];
-      log.push(KNEvidence.logRow(info, manifestHash, base + '.zip'));
+      log.push(KNEvidence.logRow(info, res.manifestHash, base + '.zip'));
       await chrome.storage.local.set({ 'kn:seals': log.slice(-500) });
 
-      $('capHash').textContent = manifestHash;
+      $('capHash').textContent = res.manifestHash;
       $('capResult').hidden = false;
-      status('Sealed ' + when.toISOString().slice(0, 19) + 'Z — saved ' + (state.downloads ? 'to Downloads / ' + dir + ' / ' : '') + base + '.zip', 'ok');
+      status('Sealed ' + when.toISOString().slice(0, 19) + 'Z' + (res.plan.timestamp ? ' (trusted time ' + res.plan.timestamp.genTime + ')' : '') + (res.plan.signed ? ', signed' : '') + ' — saved ' + (state.downloads ? 'to Downloads / ' + dir + ' / ' : '') + base + '.zip' + (warnings.length ? '. Note: ' + warnings.join(' ') : ''), warnings.length ? 'err' : 'ok');
     } catch (e) {
       status('Couldn’t capture: ' + errText(e), 'err');
     } finally {

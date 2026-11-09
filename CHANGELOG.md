@@ -2,6 +2,24 @@
 
 All notable changes to PageMate. (Versions before the rename were called "Kokoro Page Reader".)
 
+## 1.7.0
+- New: **Investigate** (right-click → *Investigate this page…*, *Look up “…”*): **Look up** anything (address, domain, IP, email, hash, @handle,
+  phone, coordinates, CVE, wallet, AS number, MAC, analytics id) in many services as plain links, with **defang / refang** and your own services;
+  **Page entities** (everything on a page, CSV / Markdown); **Images & video** (EXIF / GPS / XMP / MP4 metadata, SHA-256, magnifier, error level
+  analysis, reverse image search, video frames); **Archive** (Wayback Machine, archive.today); **Site profile** (headers, technologies,
+  trackers, analytics ids, hidden text, comments); **Search operators** builder; **Trail** (optional log of pages visited for a case).
+- New: **Screenshots**: selected area, visible part, or whole page (stitched), with box / arrow / highlight / text, **redact**, pixelate, crop,
+  save PNG / JPEG, copy, share, or **seal as evidence**.
+- New: **Record screen**: a whole screen, one window or one tab (and its sound, plus optional microphone) to a WebM or MP4 file, with pause,
+  countdown, quality and frame-rate choices; save it or **seal it as evidence** (signed / trusted-timestamped like any capture). No new permission.
+- New: **Share** to X, Bluesky, Mastodon, Threads, Reddit, LinkedIn, Facebook, Telegram, WhatsApp, Hacker News and email, with tracking codes
+  removed, length limits respected and warnings for private-looking links. Nothing is posted for you.
+- Evidence: sealed packages can now include a **full-page screenshot**, **response headers** (cookie values removed), **page details**,
+  **entities**, the case's **trail**, and recorded **archive links**; and can be **signed** (ECDSA P-256) and given an independent **RFC 3161 trusted
+  timestamp**. Both verify with plain `openssl`; commands are in `chain-of-custody.md`. A failed timestamp request is reported, never hidden.
+- Fixed: the Save page's left-hand options card could be taller than the window with its button out of reach; it now scrolls.
+- New optional permissions: `tabs` (only for the Trail) and, on request, archive.org, a timestamp server, or the site hosting a file you fetch.
+
 ## 1.6.0
 - **Renamed to PageMate** (was "Kokoro Page Reader"). Reading aloud still uses your own Kokoro server.
 - New: **Cases / folders** for notes; **citations** (APA, MLA, Chicago) from page details; **video and audio notes** with timestamps
