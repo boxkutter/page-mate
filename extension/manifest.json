@@ -75,6 +75,9 @@
     },
     "investigate": {
       "description": "Investigate this page (entities, lookups, archive, site profile)"
+    },
+    "record-screen": {
+      "description": "Record the screen, a window or a tab"
     }
   },
   "minimum_chrome_version": "116",

@@ -10,6 +10,8 @@ All notable changes to PageMate. (Versions before the rename were called "Kokoro
   trackers, analytics ids, hidden text, comments); **Search operators** builder; **Trail** (optional log of pages visited for a case).
 - New: **Screenshots**: selected area, visible part, or whole page (stitched), with box / arrow / highlight / text, **redact**, pixelate, crop,
   save PNG / JPEG, copy, share, or **seal as evidence**.
+- New: **Record screen**: a whole screen, one window or one tab (and its sound, plus optional microphone) to a WebM or MP4 file, with pause,
+  countdown, quality and frame-rate choices; save it or **seal it as evidence** (signed / trusted-timestamped like any capture). No new permission.
 - New: **Share** to X, Bluesky, Mastodon, Threads, Reddit, LinkedIn, Facebook, Telegram, WhatsApp, Hacker News and email, with tracking codes
   removed, length limits respected and warnings for private-looking links. Nothing is posted for you.
 - Evidence: sealed packages can now include a **full-page screenshot**, **response headers** (cookie values removed), **page details**,

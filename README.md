@@ -9,7 +9,7 @@ any web page into something you can listen to, keep, and study from. It has no a
 - 🖍️ **Highlight and take notes** that stay attached to the exact words, with Markdown export, citations, Anki flashcards and video timestamps
 - 🔒 **Capture & seal** a page into a SHA-256 fingerprinted evidence package with a chain-of-custody record, optionally **signed** and with an independent **trusted timestamp** you can verify with `openssl`
 - 🔎 **Investigate**: look up any address, IP, email, hash, handle or coordinate in one click; list everything on a page; check images and video (EXIF/GPS, reverse search, keyframes); see archived copies; profile a site
-- 📸 **Screenshots**: selected area, visible part or whole page; mark up, redact, save, copy, share or seal
+- 📸 **Screenshots and screen recording**: selected area, visible part or whole page (mark up, redact, save, copy, share or seal), or record a screen, window or tab with sound
 - 📣 **Share** a page or quote to X, Bluesky, Mastodon, Reddit and more, with tracking codes removed (nothing is posted for you)
 
 > **Status:** version 1.7.0, not yet in the Chrome Web Store, so you install it from this repository (below).
@@ -66,6 +66,7 @@ asks, pick a voice, press **Preview**, and set the speed.
 | Reverse-search an image, or read its metadata | Right-click the image → **Reverse image search** / **Image metadata and checks…** |
 | See or save an archived copy | Right-click → **Archive this page** |
 | Take a screenshot | Right-click → **Screenshot** → selected area / visible / whole page |
+| Record the screen | Right-click → **Record screen…** |
 | Share a page or a quote | Right-click → **Share…** |
 
 Keyboard shortcuts can be changed at `brave://extensions/shortcuts`. Notes shortcuts have no default keys, because browsers allow only four.
@@ -112,6 +113,7 @@ Keyboard shortcuts can be changed at `brave://extensions/shortcuts`. Notes short
 - Highlights and notes work in the page itself, not in embedded frames or PDFs.
 - Video: plain files and HLS (`.m3u8`) streams. Not supported: DRM, live streams, DASH (`.mpd`). Streams with a separate audio track can't be combined in the offline web page.
 - Files over about 1.5 GB are too big to convert to MP4 inside the browser.
+- Screen recordings are held in memory until saved (closing the recorder tab discards them), are not re-encoded, and WebM files often lack a duration header.
 - Whole-page screenshots are cut off at about 16,000 pixels tall (the browser's canvas limit), and don't scroll panels *inside* a page.
 - The technology list in the site profile is short and matched on visible clues; reverse-image links and lookup services are third-party addresses that can change.
 - The Anki export follows Anki's documented import format but hasn't been opened in Anki itself; try one small export first.

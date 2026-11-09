@@ -204,6 +204,24 @@ and copied images have them burned in, so a redaction really removes what is und
 version if you made one, the page address and headers, and the usual manifest, fingerprints and chain of custody, with the optional signature and
 trusted timestamp. Screenshots wait in the browser for a day, then are discarded.
 
+## Record the screen
+
+Right-click → **Record screen…** (or the toolbar icon's menu, or a shortcut you set at `brave://extensions/shortcuts`). A recorder tab
+opens; press **Start recording** and the browser's own picker asks what to share: a whole screen, one window or one tab. Pick a **tab** to
+capture its sound too. Options: screen/tab sound, **microphone** (mixed into the same track; the browser asks permission), a 3-second
+countdown, 15/30/60 frames a second, a quality level, and **WebM** (most reliable) or **MP4** where your browser can make it.
+
+While recording you can pause and resume (paused time is left out of the length), switch to the window you're recording, then come back
+and press **Stop**; the browser's own "Stop sharing" bar also ends it. Afterwards you can play it back, **save** it, or **seal it as evidence**:
+the package holds the recording exactly as the browser made it, a `recording-info.json` (when it started and stopped, how long, what kind of
+surface was shared, whether sound and microphone were on, the browser), the SHA-256 manifest and chain of custody, and the optional signature
+and trusted timestamp, like any other sealed capture.
+
+Things to know: the file is **not re-encoded**. WebM files from browsers usually have no duration header, so some players show no length or
+can't jump around; the length PageMate shows is measured. The recording is held in memory until you save it (it warns past 1.5 GB), and
+**closing the recorder tab discards it**. Nothing is uploaded, and no extra permission is needed. Only record what you're entitled to: other
+people's calls, windows and private messages may be covered by consent and privacy laws where you live.
+
 ## Share
 
 Right-click → **Share…** (or the **Share** tab). Edit the link, a comment and a quote (your selection is filled in), choose hashtags, and

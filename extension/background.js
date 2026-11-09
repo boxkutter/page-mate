@@ -205,10 +205,12 @@ chrome.runtime.onInstalled.addListener(details => {
     chrome.contextMenus.create({ id: 'ko-shot:region', parentId: 'ko-shot', title: 'Selected area…', contexts: ['page', 'selection'] });
     chrome.contextMenus.create({ id: 'ko-shot:visible', parentId: 'ko-shot', title: 'Visible part of the page', contexts: ['page', 'selection'] });
     chrome.contextMenus.create({ id: 'ko-shot:full', parentId: 'ko-shot', title: 'Whole page (scrolls and stitches)', contexts: ['page', 'selection'] });
+    chrome.contextMenus.create({ id: 'ko-record', title: 'Record screen…', contexts: ['page', 'selection'] });
     chrome.contextMenus.create({ id: 'ko-share', title: 'Share…', contexts: ['page', 'selection'] });
     chrome.contextMenus.create({ id: 'ko-action-investigate', title: 'Investigate this page…', contexts: ['action'] });
     chrome.contextMenus.create({ id: 'ko-action-shot-region', title: 'Screenshot: selected area…', contexts: ['action'] });
     chrome.contextMenus.create({ id: 'ko-action-shot-full', title: 'Screenshot: whole page', contexts: ['action'] });
+    chrome.contextMenus.create({ id: 'ko-action-record', title: 'Record screen…', contexts: ['action'] });
     chrome.contextMenus.create({ id: 'ko-action-share', title: 'Share this page…', contexts: ['action'] });
     chrome.contextMenus.create({ id: 'kr-action-save-page', title: 'Save page as PDF / Word / Markdown…', contexts: ['action'] });
     chrome.contextMenus.create({ id: 'kr-action-save-video', title: 'Download a video from this page…', contexts: ['action'] });
@@ -231,6 +233,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     case 'ko-lookup-link': openInvestigate(tab, { view: 'lookup', q: info.linkUrl || '' }); return;
     case 'ko-img-meta': { const web = /^https?:/i.test(info.srcUrl || ''); openInvestigate(tab, { view: 'media', img: web ? info.srcUrl : '', embedded: !web }); return; }
     case 'ko-investigate': case 'ko-action-investigate': openInvestigate(tab, { view: 'entities' }); return;
+    case 'ko-record': case 'ko-action-record': openRecord(tab); return;
     case 'ko-share': case 'ko-action-share': openInvestigate(tab, { view: 'share', quote: info.selectionText || '' }); return;
     case 'ko-shot:region': case 'ko-action-shot-region': startShot(tab, 'region'); return;
     case 'ko-shot:visible': startShot(tab, 'visible'); return;
@@ -274,6 +277,11 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
   if (command === 'toggle-notes' || command === 'highlight-selection') {
     if (!tab) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab) notesCommand(tab, command === 'toggle-notes' ? { type: 'kn-toggle' } : { type: 'kn-highlight', color: 'yellow' });
+    return;
+  }
+  if (command === 'record-screen') {
+    if (!tab) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab) openRecord(tab);
     return;
   }
   if (command === 'screenshot-region' || command === 'investigate') {
@@ -590,6 +598,20 @@ chrome.tabs.onRemoved.addListener(async tabId => {
   for (const [src, inv] of Object.entries(map)) if (Number(src) === tabId || inv === tabId) { delete map[src]; changed = true; }
   if (changed) await chrome.storage.session.set({ [INV_TABS_KEY]: map }).catch(() => {});
 });
+
+// ---------- screen recording ----------
+// The recorder is an ordinary extension page (getDisplayMedia needs a page, and shows the browser's own picker).
+// One recorder per window is enough: reuse it if it is already open.
+async function openRecord(tab) {
+  const url = chrome.runtime.getURL('record.html' + (tab && tab.id != null ? '?tab=' + tab.id : ''));
+  const stored = await chrome.storage.session.get('koRecTab').catch(() => ({}));
+  if (stored.koRecTab != null) {
+    try { const t = await chrome.tabs.get(stored.koRecTab); await chrome.tabs.update(t.id, { active: true }); if (t.windowId != null) chrome.windows.update(t.windowId, { focused: true }).catch(() => {}); return; } catch (_) {}
+  }
+  const created = await chrome.tabs.create({ url, index: tab ? tab.index + 1 : undefined, active: true });
+  await chrome.storage.session.set({ koRecTab: created.id }).catch(() => {});
+}
+chrome.tabs.onRemoved.addListener(async tabId => { const s = await chrome.storage.session.get('koRecTab').catch(() => ({})); if (s.koRecTab === tabId) chrome.storage.session.remove('koRecTab').catch(() => {}); });
 
 // ---------- screenshots ----------
 // Three ways to take one: the visible part, a dragged area, or the whole page (scroll, capture, stitch).
