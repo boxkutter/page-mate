@@ -1,8 +1,15 @@
 # PageMate user guide
 
-Everything PageMate can do, feature by feature. For installing and setting up, see the [README](../README.md).
+Everything PageMate can do, feature by feature. New here? Read the [quick start](../README.md#quick-start) first. To install, see
+[installing](install.md); for what it reads and sends, see [privacy and permissions](privacy.md).
 
-## Use
+**Contents:** [The toolbox and reading aloud](#the-toolbox-and-reading-aloud) · [Settings](#settings) · [Save a page as a document](#save-a-page-as-a-document) ·
+[Notes](#notes-highlight-annotate-export-as-markdown) · [Capture & seal](#capture--seal-evidence) · [Web page with playable videos](#web-page-with-playable-videos) ·
+[Download images](#download-images) · [audio](#download-audio) · [video](#download-a-video) · [Investigate](#investigate) · [Screenshots](#screenshots) ·
+[Record the screen](#record-the-screen) · [Share](#share) · [Firefox and other systems](#firefox-chrome-edge-and-the-three-systems) ·
+[Troubleshooting](#troubleshooting) · [Privacy](#privacy)
+
+## The toolbox and reading aloud
 
 - Click the toolbar icon to show the **toolbox**: a small panel of icons, one for each thing PageMate does (Read aloud, Notes, Save page,
   Video, Audio, Images, Screenshot, Record screen, Investigate, Look up, Archive, Share). It floats in the corner of the page, **drag its title
@@ -17,8 +24,9 @@ Everything PageMate can do, feature by feature. For installing and setting up, s
 - **From the keyboard:** each icon shows a letter; press it to start that tool (R read aloud, N notes, S save page, V video, U audio,
   M images, C screenshot then A / V / W for area / visible / whole page, E record, I investigate, L look up, A archive, H share,
   O all my notes). Arrow keys move between icons, Enter starts one, Esc goes back and then closes. The **keyboard** button (or ?) lists them all.
-- **Shortcuts that work anywhere:** every tool, and the toolbox itself, has a slot at `brave://extensions/shortcuts` (`chrome://`, `edge://`… in other browsers; in Firefox, *Add-ons Manager → ⚙ → Manage Extension Shortcuts*) (the keyboard panel's
-  button opens it). Alt+Shift+R (read), P (pause), S (save page) and V (video) come ready-made; browsers allow only four defaults, so set the
+- **Shortcuts that work anywhere:** every tool, and the toolbox itself, has a slot on your browser's shortcuts page: `chrome://extensions/shortcuts`
+  (`edge://`, `brave://`… in other browsers), or in Firefox *Add-ons Manager → ⚙ → Manage Extension Shortcuts*. The keyboard panel's button opens it.
+  Alt+Shift+R (read), P (pause), S (save page) and V (video) come ready-made; browsers allow only four defaults, so set the
   rest yourself. A good pattern: give the toolbox one key, then press a letter.
 - **Read aloud** (or Alt+Shift+R, which skips the toolbox) reads the page from where you're scrolled. Choosing it again, or pressing
   Alt+Shift+R again, closes the reader.
@@ -31,7 +39,24 @@ Everything PageMate can do, feature by feature. For installing and setting up, s
   on the new page. If you were paused, the new page opens paused. Turn this off in settings under **Reading**.
 - The player can be dragged by its title bar. The speed button cycles 0.8×–2×; the settings page has a finer slider.
 
-If the keyboard shortcuts don't work, set them at `brave://extensions/shortcuts` (Firefox: *Add-ons Manager → ⚙ → Manage Extension Shortcuts*). On a Mac, **Alt** means the **Option** (⌥) key.
+If a keyboard shortcut doesn't work, another program or your desktop may be using the same keys: set a different one on the shortcuts page above.
+On a Mac, **Alt** means the **Option** (⌥) key.
+
+## Settings
+
+Open Settings from the right-click menu on the toolbar icon (*Options*), or the **Settings** button in the toolbox. It has these sections:
+
+1. **Your Kokoro server**: the address of the server that speaks the text, and a **Connect** button that asks the browser for access to that one address.
+2. **Voice and speed**: pick a voice, **Preview** it, and set the reading speed.
+3. **Reading**: whether reading carries on when you go to another page in the same tab.
+4. **Saving pages and videos**: **Allow saving…** (the one-time access to the sites you save from and to your Downloads folder), the folder videos go into,
+   and whether PageMate notices video addresses as pages load.
+5. **Notes**: whether your highlights come back automatically on pages you have annotated.
+6. **Investigating, screenshots and evidence**: copying each screenshot automatically, noting each page's response headers (memory only), your own lookup links,
+   the **trusted-timestamp server** (with presets) and the **signing key** for sealed captures.
+7. **Sharing**: your Mastodon server, default hashtags, and removing tracking codes from shared links.
+
+Changes apply straight away. The settings page also has a short how-to list.
 
 ## Save a page as a document
 
@@ -175,7 +200,7 @@ or right-click directly on a video → **Download this video…**, which jumps s
 ## Investigate
 
 Open it from the right-click menu (**Investigate this page…**, **Look up “…”**, **Reverse image search**, **Archive this page**, **Share…**),
-from the toolbar icon's right-click menu, or with a shortcut you set at `brave://extensions/shortcuts`. It has tabs:
+from the toolbar icon's right-click menu, or with a shortcut you set on your browser's shortcuts page. It has tabs:
 
 - **Look up**: paste or select anything: a web address, domain, IP, email, file hash, `@handle`, phone number, map coordinates,
   CVE, Bitcoin/Ethereum address, AS number, MAC address or analytics id. PageMate recognises it and lists matching places to look
@@ -299,17 +324,6 @@ The same features exist in every browser; these are the differences.
 
 ## Privacy
 
-- Text is sent only to the server address you set. The extension asks permission for exactly that address
-  (and drops the permission for an old address when you change it).
-- It only reads a page when you click the icon, use the shortcut, or use the right-click menu — or, if you leave
-  "keep reading" on, when you move to a new page in the tab you're already listening to.
-- Settings (server address, voice, speed, save options) are stored in your browser.
-- **Saving pages and videos** runs entirely inside your browser. Nothing is uploaded anywhere. If you allow access, the
-  extension also notes the *addresses* of video files and streams each tab loads (in memory, for the current browser
-  session only) so they can be offered for download. Turn that off in settings under **Saving pages and videos**.
-  Pages are only read when you open the Save tab.
-- **Investigate, screenshots and sharing** run in your browser. Lookups, archives and share buttons are links you click: the service you
-  open learns what you asked, as if you had typed it there. Three actions contact a service directly, and only when you click them:
-  *List saved copies* / *Save now* (archive.org), a **trusted timestamp** (the SHA-256 of the manifest goes to the authority you chose),
-  and *Fetch* of an image or video by address (to the site that hosts it). With access to sites allowed, PageMate notes each page's response
-  headers (memory only, per tab, cookie values removed); turn that off in settings. The **trail** is off unless you switch it on.
+Short version: page text goes only to the Kokoro server address you set; saving, notes, screenshots, recording, investigating and sealing
+all happen in your browser; lookups, archives and share buttons are links you click. The full list of what is read, what leaves your
+browser and why each permission is requested is in **[privacy and permissions](privacy.md)**.

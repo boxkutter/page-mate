@@ -12,3 +12,6 @@ the Mediabunny project, and `scripts/build-vendor.sh` rebuilds the bundled file 
 
 PageMate works with, but does not include, the [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model
 and the [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) server. You run those yourself under their own licenses.
+
+**Development tools** (never shipped inside the extension): [puppeteer-core](https://pptr.dev) (Apache-2.0) drives the browser tests, and
+[web-ext](https://github.com/mozilla/web-ext) (MPL-2.0) is run through `npx` only when a maintainer signs the Firefox build with Mozilla.

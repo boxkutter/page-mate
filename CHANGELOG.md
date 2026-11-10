@@ -2,6 +2,13 @@
 
 All notable changes to PageMate. (Versions before the rename were called "Kokoro Page Reader".)
 
+## 1.9.2
+- Docs: **README rewritten as a welcome page** (what PageMate does, a quick start, install, everyday use), with the detail moved into new
+  **[docs/install.md](docs/install.md)** (every browser and system, updating, uninstalling, building) and **[docs/privacy.md](docs/privacy.md)**
+  (what is read, what leaves the browser, every permission). The user guide gained a contents list and a Settings section; CONTRIBUTING,
+  SECURITY and the third-party notices were brought up to date for the two packages.
+- Fixed: the Settings page said sealed captures always ask for an extra permission; in Firefox they don't.
+
 ## 1.9.1
 - New: **signed Firefox installs.** `npm run sign:firefox` (or a pushed version tag, in CI) has Mozilla sign the Firefox build as an unlisted
   add-on, giving a `.xpi` that installs permanently in regular Firefox without being listed in the add-ons store. No change to the extension itself.

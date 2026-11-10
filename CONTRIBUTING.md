@@ -25,11 +25,24 @@ Open an issue first and describe the problem you're trying to solve, not only th
 quick to use every day, so features are weighed against that. Something that helps students, researchers, investigators or
 people who listen to long articles is a good fit; something that needs an account or a server of ours is not.
 
+## Project layout
+
+```
+extension/    the extension itself (manifest.json, background.js, content scripts, Save page, Notes, vendor/)
+docs/         user documentation: guide.md, install.md, privacy.md
+scripts/      build.js (the Chromium and Firefox packages), sign-firefox.js (unlisted AMO signing), build-vendor.sh (the MP4 converter)
+tests/        unit and browser tests, and fixtures
+.github/      CI: builds and unit tests on Windows, macOS and Linux, browser tests, releases
+```
+
+`extension/` is plain JavaScript that Chromium loads as it stands; `scripts/build.js` writes each browser's manifest and zips the result
+(see [docs/install.md](docs/install.md#building-from-source)).
+
 ## Working on the code
 
 1. Fork the repository and create a branch: `git checkout -b fix/short-description`.
 2. Load the `extension/` folder as an unpacked extension in Chromium, or run `node scripts/build.js` and load `dist/firefox` as a temporary add-on
-   in Firefox (see the [README](README.md#install)). After editing, press the reload arrow on the extension card (rebuild first for Firefox).
+   in Firefox (see [docs/install.md](docs/install.md)). After editing, press the reload arrow on the extension card (rebuild first for Firefox).
 3. Make your change, and **add or update a test** for it where practical.
 4. Run the tests (below) and make sure they pass.
 5. Open a pull request against `main`. Say what changed and why, and how you tested it. Keep it focused: one fix or feature
@@ -69,7 +82,7 @@ Please don't add features that:
 - add analytics, telemetry or remote code,
 - request broader permissions than needed (new permissions should be **optional** and asked for at the moment of use).
 
-A change that adds a permission must update the permission table in the README.
+A change that adds a permission must update the permission tables in [docs/privacy.md](docs/privacy.md).
 
 ### Things that need special care
 
@@ -82,7 +95,7 @@ A change that adds a permission must update the permission table in the README.
 
 - [ ] Tests pass (`npm test`), and new behavior has a test
 - [ ] No private URLs, tokens or personal data in code, tests or screenshots
-- [ ] README / `docs/guide.md` updated if behavior or permissions changed
+- [ ] README / `docs/guide.md` / `docs/privacy.md` / `docs/install.md` updated if behavior, install steps or permissions changed
 - [ ] `CHANGELOG.md` has a line under the next version
 
 ## Releasing (maintainers)

@@ -1,6 +1,6 @@
 {
   "name": "pagemate",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "private": true,
   "description": "PageMate: a browser extension to read pages aloud, save them as PDF/Word/Markdown, download course media, keep study notes, and investigate, screenshot and seal evidence.",
   "license": "MIT",
