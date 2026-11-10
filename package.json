@@ -1,6 +1,6 @@
 {
   "name": "pagemate",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "private": true,
   "description": "PageMate: a browser extension to read pages aloud, save them as PDF/Word/Markdown, download course media, keep study notes, and investigate, screenshot and seal evidence.",
   "license": "MIT",
@@ -14,7 +14,8 @@
     "test:firefox": "node tests/run-firefox.js",
     "test": "npm run test:unit && npm run test:browser",
     "build": "node scripts/build.js",
-    "package": "node scripts/build.js"
+    "package": "node scripts/build.js",
+    "sign:firefox": "node scripts/sign-firefox.js"
   },
   "devDependencies": {
     "puppeteer-core": "^25.16.0"

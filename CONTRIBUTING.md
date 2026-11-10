@@ -93,6 +93,16 @@ A change that adds a permission must update the permission table in the README.
 4. Tag (`git tag v1.x.y && git push --tags`). CI builds both packages and attaches `dist/pagemate-<version>-chromium.zip` and `-firefox.zip` to a GitHub release.
 5. For a store: upload the Chromium zip to the Chrome Web Store / Edge Add-ons; for addons.mozilla.org upload the Firefox zip, and when asked for source code give this repository at the tag (`extension/vendor/ts2mp4.min.js` is built from `scripts/vendor-entry.js` with `scripts/build-vendor.sh`; every other file ships as written). The Firefox add-on id in `scripts/build.js` (`GECKO_ID`) must never change once published.
 
+### Signing for Firefox (unlisted)
+
+Regular Firefox only installs add-ons signed by Mozilla. An **unlisted** signing is free, automatic (no human review, usually a minute or two) and
+gives a `.xpi` that installs permanently, without appearing in the add-ons store.
+
+1. Sign in at <https://addons.mozilla.org/developers/> with a Firefox account and open *Manage API Keys* (<https://addons.mozilla.org/developers/addon/api/key/>). Generate credentials: a **JWT issuer** (looks like `user:12345:67`) and a **JWT secret**.
+2. Locally: `AMO_JWT_ISSUER=... AMO_JWT_SECRET=... npm run sign:firefox` (on Windows PowerShell: `$env:AMO_JWT_ISSUER='...'; $env:AMO_JWT_SECRET='...'; npm run sign:firefox`). The signed file is `dist/signed/*.xpi`.
+3. Or in CI: add the same two values as repository secrets named `AMO_JWT_ISSUER` and `AMO_JWT_SECRET`. A pushed `v*` tag then signs the Firefox build and attaches the `.xpi` to the release; without the secrets that step is skipped.
+4. Mozilla refuses a version it has already signed, so bump the version for every signing. Never commit the keys. The add-on id (`GECKO_ID` in `scripts/build.js`) is registered with Mozilla on the first signing and can't change afterwards.
+
 ## Conduct
 
 Be kind and assume good faith. Harassment or personal attacks aren't tolerated, and maintainers may remove comments, close

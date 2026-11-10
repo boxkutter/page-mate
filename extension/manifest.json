@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PageMate",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "Read pages aloud with your own Kokoro server, save them as PDF/Word/Markdown, download course media, keep study notes, and investigate: lookups, archives, screenshots and sealed evidence.",
   "permissions": [
     "activeTab",

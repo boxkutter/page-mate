@@ -13,7 +13,7 @@ account, no cloud and no tracking.
 - 📸 **Screenshots and screen recording**: selected area, visible part or whole page (mark up, redact, save, copy, share or seal), or record a screen, window or tab with sound
 - 📣 **Share** a page or quote to X, Bluesky, Mastodon, Reddit and more, with tracking codes removed (nothing is posted for you)
 
-> **Status:** version 1.9.0, not yet in any browser's add-on store, so you install it from a download or from this repository (below).
+> **Status:** version 1.9.1, not yet in any browser's add-on store, so you install it from a download or from this repository (below).
 > Its logic is covered by automated tests, and the whole extension is driven end-to-end in Chromium. It has had limited
 > real-world use, so please [report anything odd](https://github.com/boxkutter/page-mate/issues).
 
@@ -57,7 +57,8 @@ To update: install the newer package over the same folder (or `git pull` and `no
 Firefox only keeps unsigned add-ons until you quit, so there are two ways:
 
 - **Try it (temporary):** open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and choose `manifest.json` inside the unzipped firefox folder (`dist/firefox`), or the `.zip` itself. It stays until Firefox closes; load it again next time.
-- **Keep it (permanent):** use **Firefox Developer Edition**, **Nightly** or an **ESR/unbranded** build, set `xpinstall.signatures.required` to `false` in `about:config`, then install the `.zip` from `about:addons` → ⚙ → *Install Add-on From File…*. Regular Firefox only installs add-ons signed by Mozilla.
+- **Keep it (permanent, easiest):** install the Mozilla-signed `pagemate-<version>.xpi` from the [Releases page](https://github.com/boxkutter/page-mate/releases) (when there is one): open it in Firefox or drag it onto a Firefox window. It works in regular Firefox, stays installed, and is not listed in the add-ons store. Maintainers: see *Signing for Firefox* in [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Keep it (permanent, unsigned):** use **Firefox Developer Edition**, **Nightly** or an **ESR/unbranded** build, set `xpinstall.signatures.required` to `false` in `about:config`, then install the `.zip` from `about:addons` → ⚙ → *Install Add-on From File…*. Regular Firefox only installs add-ons signed by Mozilla.
 
 Then pin it: the puzzle-piece (Extensions) icon → ⚙ next to PageMate → *Pin to Toolbar*. Firefox asks before an add-on may use "all sites"; PageMate asks for that the first time you need it (**Allow** on the Save page, a screenshot of another tab, and so on), or you can grant it under `about:addons` → PageMate → *Permissions*.
 

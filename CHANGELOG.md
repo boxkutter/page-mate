@@ -2,6 +2,10 @@
 
 All notable changes to PageMate. (Versions before the rename were called "Kokoro Page Reader".)
 
+## 1.9.1
+- New: **signed Firefox installs.** `npm run sign:firefox` (or a pushed version tag, in CI) has Mozilla sign the Firefox build as an unlisted
+  add-on, giving a `.xpi` that installs permanently in regular Firefox without being listed in the add-ons store. No change to the extension itself.
+
 ## 1.9.0
 - New: **PageMate for Firefox.** There are now two packages built from the same code: `pagemate-<version>-chromium.zip` (Chrome, Edge, Brave,
   Opera, Vivaldi and other Chromium browsers) and `pagemate-<version>-firefox.zip` (Firefox 128 or newer). Everything works in Firefox:

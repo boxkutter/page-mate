@@ -52,7 +52,9 @@ jobs:
       - name: Firefox
         run: npm run test:firefox
 
-  # A tag like v1.9.0 attaches the two packages to a GitHub release.
+  # A tag like v1.9.0 attaches the packages to a GitHub release. If the repository has the secrets AMO_JWT_ISSUER and
+  # AMO_JWT_SECRET (Settings -> Secrets and variables -> Actions), Mozilla also signs the Firefox build (unlisted) and the
+  # installable .xpi is attached too.
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build, browsers]
@@ -60,10 +62,20 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - uses: actions/download-artifact@v4
         with:
           name: packages
           path: dist
-      - run: gh release create "$GITHUB_REF_NAME" dist/*.zip --repo "$GITHUB_REPOSITORY" --generate-notes
+      - name: Sign for Firefox (unlisted)
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          if [ -n "$AMO_JWT_ISSUER" ] && [ -n "$AMO_JWT_SECRET" ]; then node scripts/sign-firefox.js; else echo "No AMO keys set: skipping Firefox signing"; fi
+      - run: gh release create "$GITHUB_REF_NAME" dist/*.zip $(ls dist/signed/*.xpi 2>/dev/null) --repo "$GITHUB_REPOSITORY" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
