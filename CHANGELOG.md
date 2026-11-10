@@ -2,6 +2,24 @@
 
 All notable changes to PageMate. (Versions before the rename were called "Kokoro Page Reader".)
 
+## 1.9.0
+- New: **PageMate for Firefox.** There are now two packages built from the same code: `pagemate-<version>-chromium.zip` (Chrome, Edge, Brave,
+  Opera, Vivaldi and other Chromium browsers) and `pagemate-<version>-firefox.zip` (Firefox 128 or newer). Everything works in Firefox:
+  reading aloud (the audio plays in Firefox's background page, which a small keep-alive stops Firefox from unloading mid-sentence), the
+  toolbox, Save page, downloads, Notes, Investigate, screenshots and Record screen. Install steps for each browser and for Windows, macOS and
+  Linux are in the README.
+- Changed: in Firefox, a **sealed capture holds `capture.html`** (the page's HTML as it was, with scripts switched off and a `<base>` so
+  links point at the original site) instead of `capture.mhtml`, because Firefox can't make MHTML files. The package says which one it
+  contains, and the screenshot, text, details and fingerprints are unchanged. Firefox also can't record the computer's or a tab's sound in
+  most setups; the microphone works.
+- Changed: **"Set or change shortcuts…"** now works in Firefox (it opens Firefox's shortcuts dialog, or says where to find it) and the help text
+  names the right page for each browser; on a Mac, Alt is Option.
+- New: `node scripts/build.js` builds both packages (and unpacked folders in `dist/`) on Windows, macOS or Linux with only Node.js; it replaces
+  `scripts/package.sh`, which needed bash, zip and Python. The zips are reproducible.
+- New: `npm run test:firefox` drives the Firefox build in a real Firefox (install, toolbox, reading aloud past Firefox's idle limit, Save page,
+  evidence snapshot, screenshot, recorder). The test browser finder now knows the Windows and macOS locations too, and GitHub Actions builds
+  and runs the unit tests on all three systems, runs the browser tests, and attaches the packages to a release when a version is tagged.
+
 ## 1.8.0
 - Fixed: **recordings now play in GNOME's Videos / Showtime and other GStreamer players** (Fedora, Ubuntu…). Chrome-family browsers tag every
   WebM they record as "may contain alpha" even for screen capture; GStreamer then tries to decode an alpha channel that isn't there and the

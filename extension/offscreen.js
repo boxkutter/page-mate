@@ -146,7 +146,17 @@ function doResume() {
   emit({ type: 'resumed' });
 }
 
+// Firefox runs the background as an event page that it unloads after ~30s without activity, and that would take this audio
+// frame with it. While a session is open, a small message every few seconds counts as activity and keeps it loaded.
+let keepAlive = 0;
+function setKeepAlive(on) {
+  if (!KR_FIREFOX) return;
+  if (on && !keepAlive) keepAlive = setInterval(() => { chrome.runtime.sendMessage({ target: 'sw', type: 'kr-keepalive' }).catch(() => {}); }, 10000);
+  if (!on && keepAlive) { clearInterval(keepAlive); keepAlive = 0; }
+}
+
 function stopAll() {
+  setKeepAlive(false);
   playToken++;
   audio.pause();
   audio.removeAttribute('src');
@@ -175,6 +185,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'start') {
     stopAll();
     session = msg.session;
+    setKeepAlive(true);
     chunks = Array.isArray(msg.chunks) ? msg.chunks : [];
     base = msg.base;
     voice = msg.voice || voice;

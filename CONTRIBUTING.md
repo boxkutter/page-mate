@@ -7,12 +7,12 @@ work on the code, and the few rules that keep the project trustworthy.
 
 Open an issue and include:
 
-- your browser and version (e.g. Brave 1.8x / Chromium 1xx) and operating system
-- the PageMate version (shown on `chrome://extensions`)
+- your browser and version (e.g. Brave 1.8x / Chromium 1xx / Firefox 13x) and operating system (Windows, macOS or Linux)
+- the PageMate version (shown on `chrome://extensions`, or `about:addons` in Firefox) and which package you installed (`-chromium` or `-firefox`)
 - what you did, what you expected, and what happened
 - the page address if it's public, or a description of the page if it isn't (**never paste private links, login tokens
   or signed URLs**, such as ones with `Signature=` or `token=` in them)
-- errors from the console: the extension card → **service worker** (background) or the page's DevTools console
+- errors from the console: the extension card → **service worker** (background; in Firefox `about:debugging` → *Inspect* on PageMate) or the page's DevTools console
 
 If PageMate can't read, save or download from a specific site, say so and what kind of player or page it is; those reports
 are the most useful kind.
@@ -28,8 +28,8 @@ people who listen to long articles is a good fit; something that needs an accoun
 ## Working on the code
 
 1. Fork the repository and create a branch: `git checkout -b fix/short-description`.
-2. Load the `extension/` folder as an unpacked extension (see the [README](README.md#install)). After editing, press the
-   reload arrow on the extension card.
+2. Load the `extension/` folder as an unpacked extension in Chromium, or run `node scripts/build.js` and load `dist/firefox` as a temporary add-on
+   in Firefox (see the [README](README.md#install)). After editing, press the reload arrow on the extension card (rebuild first for Firefox).
 3. Make your change, and **add or update a test** for it where practical.
 4. Run the tests (below) and make sure they pass.
 5. Open a pull request against `main`. Say what changed and why, and how you tested it. Keep it focused: one fix or feature
@@ -41,6 +41,7 @@ people who listen to long articles is a good fit; something that needs an accoun
 npm install
 npm run test:unit      # no browser needed
 npm run test:browser   # needs Chromium that allows --load-extension; set CHROME=/path/to/chromium if it isn't found
+npm run test:firefox   # builds the Firefox package and drives it in Firefox 128+; set FIREFOX=/path/to/firefox if it isn't found
 ```
 
 Browser tests occasionally fail to start the extension's service worker on the first try ("No SW"); rerun before
@@ -48,8 +49,8 @@ assuming your change broke something. If a test is flaky, that's worth an issue 
 
 ### Code style and design rules
 
-- **Plain JavaScript, no build step, no framework, no bundler** for the extension itself. Files under `extension/` are what
-  ships. The one exception is the vendored converter in `extension/vendor/`, rebuilt with `scripts/build-vendor.sh`.
+- **Plain JavaScript, no framework, no bundler** for the extension itself. Files under `extension/` are what ships;
+  `scripts/build.js` only writes each browser's manifest and zips them. The one exception is the vendored converter in `extension/vendor/`, rebuilt with `scripts/build-vendor.sh`.
 - **No new runtime dependencies** without discussion. If one is truly needed, it must be vendored with its license and listed
   in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 - Keep the pure logic (parsing, writers, anchoring, citations) separate from browser APIs so it can be unit tested in Node.
@@ -57,6 +58,8 @@ assuming your change broke something. If a test is flaky, that's worth an issue 
 - Match the surrounding style: 2-space indent, semicolons, single quotes, short comments that explain *why*.
 - Anything that handles page content or imported files must treat it as **untrusted**: build DOM with `textContent` / `createElement`, never `innerHTML` with page data.
 - Be honest in the UI: if something can't be done, say what and why in plain words.
+- **One code base, several browsers.** Use the `chrome.*` namespace everywhere (Firefox accepts it, with promises). Don't call an API that only one browser has without checking it exists first (`chrome.offscreen`, `chrome.pageCapture` and `chrome.commands.openShortcutSettings` are the current examples) and give the other browser a working fallback or an honest message. Browser differences live in `scripts/build.js` (manifests) and a few clearly commented `if (!chrome.x)` / `KR_FIREFOX` branches; keep it that way. Check anything that touches the background script or a browser API in both `npm run test:browser` and `npm run test:firefox`.
+- **Windows, macOS and Linux:** don't build file paths by hand in extension code (use the `/`-separated paths the downloads API takes and `sanitizeName`), and don't write shell-only instructions without the Windows and macOS equivalents.
 
 ### Privacy and permissions are part of the design
 
@@ -84,10 +87,11 @@ A change that adds a permission must update the permission table in the README.
 
 ## Releasing (maintainers)
 
-1. Bump `version` in `extension/manifest.json` and `package.json`; update `tests/run-shipped.js` if it pins the version.
+1. Bump `version` in `extension/manifest.json`, `package.json` and `package-lock.json`.
 2. Add the entry to `CHANGELOG.md`.
-3. `npm test && npm run package`.
-4. Tag (`git tag v1.x.y && git push --tags`) and attach `dist/pagemate-<version>.zip` to a GitHub release.
+3. `npm test && npm run test:firefox && npm run build`.
+4. Tag (`git tag v1.x.y && git push --tags`). CI builds both packages and attaches `dist/pagemate-<version>-chromium.zip` and `-firefox.zip` to a GitHub release.
+5. For a store: upload the Chromium zip to the Chrome Web Store / Edge Add-ons; for addons.mozilla.org upload the Firefox zip, and when asked for source code give this repository at the tag (`extension/vendor/ts2mp4.min.js` is built from `scripts/vendor-entry.js` with `scripts/build-vendor.sh`; every other file ships as written). The Firefox add-on id in `scripts/build.js` (`GECKO_ID`) must never change once published.
 
 ## Conduct
 

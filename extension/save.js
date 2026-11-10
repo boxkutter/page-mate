@@ -1301,7 +1301,7 @@
   // A permission request has to come straight from the click, and asking once is friendlier than asking three times.
   async function requestCapturePermissions({ stamp, shot }) {
     const permissions = [], origins = [];
-    if (!(await chrome.permissions.contains({ permissions: ['pageCapture'] }).catch(() => false))) permissions.push('pageCapture');
+    if (chrome.pageCapture && !(await chrome.permissions.contains({ permissions: ['pageCapture'] }).catch(() => false))) permissions.push('pageCapture');
     if (stamp) { const o = new URL(stamp).origin + '/*'; if (!(await chrome.permissions.contains({ origins: [o] }).catch(() => false))) origins.push(o); }
     // a screenshot of a tab that is not the one the user just clicked on needs "all sites" in the form <all_urls>
     if (shot && !(await chrome.permissions.contains({ origins: ['<all_urls>'] }).catch(() => false))) origins.push('<all_urls>');
@@ -1346,7 +1346,16 @@
       const warnings = [];
       status('Capturing the page…');
       const when = new Date();
-      const mhtml = await chrome.pageCapture.saveAsMHTML({ tabId });
+      // Chromium can save a page as one MHTML file. Firefox can't, so there the page's own HTML (as it is now, after its scripts
+      // ran) is kept instead; the screenshot and the page text are the record of how it looked.
+      let mhtml;
+      if (chrome.pageCapture) mhtml = await chrome.pageCapture.saveAsMHTML({ tabId });
+      else {
+        const r = await chrome.scripting.executeScript({ target: { tabId }, func: KOPage.snapshotHtml });
+        const html = r && r[0] && r[0].result;
+        mhtml = html ? new Blob([html], { type: 'text/html;charset=utf-8' }) : null;
+        warnings.push('This browser can’t save a page as a single MHTML file, so capture.html holds the page’s HTML instead: its pictures and styles are not inside it, so use screenshot.png to see how the page looked.');
+      }
       if (!mhtml || !mhtml.size) throw new Error('The browser returned an empty capture (it can’t capture this kind of page).');
 
       status('Reading the page text…');
@@ -1358,7 +1367,9 @@
       try { chrome.storage.sync.set({ capBy: by, capSign: wantSign, capTimestamp: wantStamp, capShot: wantShot, ...(tsa ? { tsaUrl: tsa } : {}) }); } catch (_) {}
 
       const files = [
-        { name: 'capture.mhtml', data: mhtml, description: 'The page as the browser had it (MHTML single file)' },
+        chrome.pageCapture
+          ? { name: 'capture.mhtml', data: mhtml, description: 'The page as the browser had it (MHTML single file)' }
+          : { name: 'capture.html', data: mhtml, description: 'The page’s HTML as the browser held it (scripts switched off, links made absolute with a <base> tag; pictures and styles are not embedded)' },
         { name: 'page-text.txt', data: 'Source: ' + model.url + '\nTitle: ' + model.title + '\nCaptured (UTC): ' + when.toISOString() + '\n\n' + modelToText(model), description: 'Readable text of the page' }
       ];
       let highlights = 0;

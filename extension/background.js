@@ -1,4 +1,6 @@
-importScripts('common.js', 'osint-core.js', 'shot-core.js', 'shot-store.js', 'notes-core.js', 'shot-notes.js');
+// Chromium runs this file as a service worker and loads its helpers here. Firefox runs it as an event page and loads the
+// same files, in the same order, from the manifest's background.scripts (scripts/build.js reads this line to write that list).
+if (typeof importScripts === 'function') importScripts('common.js', 'osint-core.js', 'shot-core.js', 'shot-store.js', 'notes-core.js', 'shot-notes.js');
 
 // ---------- persistent state ----------
 // MV3 service workers are shut down after ~30s idle, so anything we need
@@ -37,7 +39,13 @@ function queueOffscreen(fn) {
   return p;
 }
 
+// Chromium needs a hidden "offscreen" document to play audio from a service worker. Firefox's background page is a real
+// page, so there the same audio page (offscreen.html) is simply loaded in a hidden frame inside it. Either way it talks to
+// this script with runtime messages, so nothing else has to know the difference.
+let audioFrame = null;
+
 async function hasOffscreen() {
+  if (!chrome.offscreen) return !!(audioFrame && audioFrame.isConnected);
   const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
   return contexts.length > 0;
 }
@@ -45,6 +53,18 @@ async function hasOffscreen() {
 function ensureOffscreen() {
   return queueOffscreen(async () => {
     if (await hasOffscreen()) return;
+    if (!chrome.offscreen) {
+      const frame = document.createElement('iframe');
+      frame.hidden = true;
+      frame.title = 'PageMate audio';
+      frame.allow = 'autoplay';
+      const loaded = new Promise(resolve => frame.addEventListener('load', resolve, { once: true }));
+      frame.src = chrome.runtime.getURL('offscreen.html');
+      document.documentElement.appendChild(frame);
+      audioFrame = frame;
+      await loaded;
+      return;
+    }
     await chrome.offscreen.createDocument({
       url: 'offscreen.html',
       // BLOBS: audio is held as blob URLs. Listing it also keeps the browser
@@ -59,8 +79,22 @@ function ensureOffscreen() {
 function closeOffscreen() {
   return queueOffscreen(async () => {
     if ((await getState()).session) return;
+    if (!chrome.offscreen) {
+      if (audioFrame) audioFrame.remove();
+      audioFrame = null;
+      return;
+    }
     if (await hasOffscreen()) await chrome.offscreen.closeDocument();
   }).catch(() => {});
+}
+
+// The browser's own page for setting keyboard shortcuts. Chromium browsers have a page for it; Firefox has no address for it
+// but can open it for us from version 137; older Firefox has to be told where to click.
+async function openShortcutSettings() {
+  if (chrome.commands.openShortcutSettings) { await chrome.commands.openShortcutSettings(); return { ok: true }; }
+  if (KR_FIREFOX) return { ok: false, error: 'Open the Add-ons Manager (Ctrl+Shift+A, or ⌘⇧A on a Mac), click the gear ⚙ and choose “Manage Extension Shortcuts”.' };
+  await chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+  return { ok: true };
 }
 
 async function toOffscreen(msg) {
@@ -476,6 +510,7 @@ async function handleMessage(msg, sender) {
   const tabId = sender.tab ? sender.tab.id : null;
 
   // Events from the audio player -> forward to the reading tab.
+  if (msg.target === 'sw' && msg.type === 'kr-keepalive') return;   // sent only to count as activity (see offscreen.js)
   if (msg.target === 'sw' && msg.type === 'kr-event') {
     if (!msg.session || msg.session !== s.session) return;
     if (msg.event && msg.event.type === 'stop-request') { await stopSession({ notifyTab: true }); return; }
@@ -566,7 +601,7 @@ async function handleMessage(msg, sender) {
     case 'ko-has-origin': { if (!sender.tab) return { ok: false }; try { return { ok: true, has: await chrome.permissions.contains({ origins: [new URL(String(msg.url)).origin + '/*'] }) }; } catch (_) { return { ok: true, has: false }; } }
     case 'ko-rec-window': { if (!sender.tab) return { ok: false }; await openRecord(sender.tab); return { ok: true }; }
     case 'ko-dock-commands': { if (!sender.tab) return { ok: false }; return { ok: true, commands: (await chrome.commands.getAll()).map(c => ({ name: c.name, shortcut: c.shortcut || '' })) }; }
-    case 'ko-open-shortcuts': { if (!sender.tab) return { ok: false }; await chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }); return { ok: true }; }
+    case 'ko-open-shortcuts': { if (!sender.tab) return { ok: false }; return openShortcutSettings(); }
     case 'ko-shot-data': { if (!sender.tab) return { ok: false }; return shotData(String(msg.id)); }
     case 'ko-shot-notes': { if (!sender.tab) return { ok: false }; return shotToNotes(String(msg.id), String(msg.caption || '')); }
     case 'ko-shot-edit': { if (!sender.tab) return { ok: false }; return openShotEditor(sender.tab, String(msg.id)); }

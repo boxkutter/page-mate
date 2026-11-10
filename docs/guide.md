@@ -17,7 +17,7 @@ Everything PageMate can do, feature by feature. For installing and setting up, s
 - **From the keyboard:** each icon shows a letter; press it to start that tool (R read aloud, N notes, S save page, V video, U audio,
   M images, C screenshot then A / V / W for area / visible / whole page, E record, I investigate, L look up, A archive, H share,
   O all my notes). Arrow keys move between icons, Enter starts one, Esc goes back and then closes. The **keyboard** button (or ?) lists them all.
-- **Shortcuts that work anywhere:** every tool, and the toolbox itself, has a slot at `brave://extensions/shortcuts` (the keyboard panel's
+- **Shortcuts that work anywhere:** every tool, and the toolbox itself, has a slot at `brave://extensions/shortcuts` (`chrome://`, `edge://`… in other browsers; in Firefox, *Add-ons Manager → ⚙ → Manage Extension Shortcuts*) (the keyboard panel's
   button opens it). Alt+Shift+R (read), P (pause), S (save page) and V (video) come ready-made; browsers allow only four defaults, so set the
   rest yourself. A good pattern: give the toolbox one key, then press a letter.
 - **Read aloud** (or Alt+Shift+R, which skips the toolbox) reads the page from where you're scrolled. Choosing it again, or pressing
@@ -31,7 +31,7 @@ Everything PageMate can do, feature by feature. For installing and setting up, s
   on the new page. If you were paused, the new page opens paused. Turn this off in settings under **Reading**.
 - The player can be dragged by its title bar. The speed button cycles 0.8×–2×; the settings page has a finer slider.
 
-If the keyboard shortcuts don't work, set them at `brave://extensions/shortcuts`.
+If the keyboard shortcuts don't work, set them at `brave://extensions/shortcuts` (Firefox: *Add-ons Manager → ⚙ → Manage Extension Shortcuts*). On a Mac, **Alt** means the **Option** (⌥) key.
 
 ## Save a page as a document
 
@@ -270,15 +270,29 @@ and **warns** when a link looks private: a signed or token address, a local addr
 screenshot viewer uses your device's share sheet where available; elsewhere the social buttons copy the picture first so you can paste it into the post.
 Think before sharing anything that could identify a source, a victim or a private person.
 
+## Firefox, Chrome, Edge… and the three systems
+
+The same features exist in every browser; these are the differences.
+
+- **Firefox** has no way to save a page as one MHTML file, so a *sealed capture* contains `capture.html` (the page's HTML as it was when
+  you sealed it, with scripts switched off and links pointing at the original site) in place of `capture.mhtml`. The screenshot, the readable
+  text, the details and the fingerprints are the same, and `chain-of-custody.md` says which file you have. Firefox also can't record the
+  computer's or a tab's sound in most setups (the microphone works), and it keeps the audio for reading aloud in its background page.
+- **Chrome, Edge, Brave, Opera, Vivaldi** share one package and behave the same; only the address of the extensions page changes (`edge://extensions`…).
+- **Windows, macOS, Linux:** the files you save and the sealed packages are the same everywhere. On a Mac, Alt is Option (⌥). The first screen
+  recording on macOS needs *System Settings → Privacy & Security → Screen Recording* switched on for your browser (then restart the browser).
+  To check a sealed package: Linux `sha256sum -c SHA256SUMS`; macOS `shasum -a 256 -c SHA256SUMS`; Windows PowerShell `Get-FileHash <file>` and
+  compare with the line in `SHA256SUMS`.
+
 ## Troubleshooting
 
 - **"Can't reach your Kokoro server"**: check that the Kokoro server is running, that
   `http://<server-ip>:8880/web` opens in the browser, and that you're on the home network or VPN.
   Fix it, then press play in the player to retry.
 - **Nothing happens on some pages / the icon shows a red "!"**: browsers don't let extensions run on built-in pages
-  (`brave://…`, the Web Store, the PDF viewer). Everything else works.
+  (`brave://…`, `about:…`, the Web Store, Mozilla's add-on site, the PDF viewer). Everything else works.
 - **It reads menus or misses text**: select the text you want and use **Read selection aloud**.
-- **After updating the files**: click the reload arrow on the extension card in `brave://extensions`.
+- **After updating the files**: click the reload arrow on the extension card in `brave://extensions` (Firefox: load the add-on again in `about:debugging`).
   Pages that were already open keep working; open the toolbox and choose **Read aloud** (or press Alt+Shift+R) to bring the player back.
 - **Reading stopped after following a link to another site**: the extension only gets access to the site you
   started it on. Choose **Read aloud** (or press Alt+Shift+R) on the new site to keep going.

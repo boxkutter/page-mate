@@ -293,8 +293,10 @@
     });
     const table = el('table', null, el('tr', null, ...['Tool', 'Here', 'Anywhere'].map(t => el('td', { class: 'none', text: t }))), ...rows);
     if (current !== 'keys') return;
+    const shortcutHelp = el('p', { class: 'note' });
     panel.replaceChildren(header('Keyboard shortcuts'), el('div', { class: 'keys' }, table),
-      el('div', { class: 'row' }, el('button', { class: 'btn main', onclick: e => { if (trusted(e)) send({ type: 'ko-open-shortcuts' }); } }, 'Set or change shortcuts…')),
+      el('div', { class: 'row' }, el('button', { class: 'btn main', onclick: async e => { if (!trusted(e)) return; const r = await send({ type: 'ko-open-shortcuts' }); if (r && r.error) shortcutHelp.textContent = r.error; } }, 'Set or change shortcuts…')),
+      shortcutHelp,
       el('p', { class: 'note', text: 'Here = press the letter while this toolbox is open. Anywhere = works on any page; browsers allow only four tools to come with a ready-made key, so choose your own for the rest.' }));
     settle();
   }

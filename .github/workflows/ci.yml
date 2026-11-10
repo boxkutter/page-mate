@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # Builds both packages and runs the pure-logic tests on all three systems.
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:unit
+      - run: node scripts/build.js
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: packages
+          path: dist/*.zip
+
+  # Drives the real extension: Chromium (Playwright's build, because branded Chrome ignores --load-extension) and Firefox.
+  browsers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npx --yes playwright@1 install --with-deps chromium
+      - name: Chromium
+        run: npm run test:browser
+        env:
+          LANG: C.UTF-8
+          LC_ALL: C.UTF-8
+      - name: Firefox
+        run: npm run test:firefox
+
+  # A tag like v1.9.0 attaches the two packages to a GitHub release.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, browsers]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: dist
+      - run: gh release create "$GITHUB_REF_NAME" dist/*.zip --repo "$GITHUB_REPOSITORY" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

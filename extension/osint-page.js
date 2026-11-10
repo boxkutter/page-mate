@@ -68,5 +68,24 @@
     try { out.resources = performance.getEntriesByType('resource').slice(0, 1500).map(function (r) { return r.name; }); } catch (_) {}
     return out;
   }
-  root.KOPage = { collect: collect };
+  // The page's HTML as it is now (for browsers that can't save MHTML). Self-contained, like `collect`.
+  // Two things are added so that an evidence copy is safe and readable when opened later: a <base> so relative links point at
+  // the original site, and a policy that stops the page's scripts from running again.
+  function snapshotHtml() {
+    const doc = document.documentElement.cloneNode(true);
+    const head = doc.querySelector('head') || doc.insertBefore(document.createElement('head'), doc.firstChild);
+    if (!head.querySelector('base[href]')) {
+      const base = document.createElement('base');
+      base.href = document.baseURI;
+      head.insertBefore(base, head.firstChild);
+    }
+    const csp = document.createElement('meta');
+    csp.httpEquiv = 'Content-Security-Policy';
+    csp.content = "script-src 'none'";
+    head.insertBefore(csp, head.firstChild);
+    const dt = document.doctype ? new XMLSerializer().serializeToString(document.doctype) : '<!doctype html>';
+    return dt + '\n<!-- Captured by PageMate from ' + location.href.replace(/--+/g, '-') + ' at ' + new Date().toISOString() + ' -->\n' + doc.outerHTML;
+  }
+
+  root.KOPage = { collect: collect, snapshotHtml: snapshotHtml };
 })(typeof self !== 'undefined' ? self : globalThis);

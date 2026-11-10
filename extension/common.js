@@ -1,5 +1,8 @@
 // Shared helpers (used by background, offscreen and options pages).
 
+// True in Firefox (its extension addresses start moz-extension://; Chromium's start chrome-extension://).
+const KR_FIREFOX = typeof chrome !== 'undefined' && !!chrome.runtime && /^moz-extension:/.test(chrome.runtime.getURL(''));
+
 const KR_DEFAULTS = {
   serverUrl: '', voice: 'af_heart', speed: 1.0, autoContinue: true,
   // Saving pages / videos

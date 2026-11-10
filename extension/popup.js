@@ -76,7 +76,11 @@
   $('shortcuts').addEventListener('click', () => show('keys'));
   $('allNotes').addEventListener('click', () => run('all-notes'));
   $('settings').addEventListener('click', () => { chrome.runtime.openOptionsPage(); window.close(); });
-  $('setKeys').addEventListener('click', () => { chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }); window.close(); });
+  $('setKeys').addEventListener('click', async () => {
+    let r = null;
+    try { r = await chrome.runtime.sendMessage({ type: 'ko-open-shortcuts' }); } catch (_) {}
+    if (r && r.ok) window.close(); else $('setKeysHelp').textContent = (r && r.error) || 'Open your browser’s extension shortcuts page to set them.';
+  });
 
   async function renderKeys() {
     let cmds = [];
